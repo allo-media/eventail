@@ -1,5 +1,8 @@
 import logging
 import time
+from typing import Callable
+
+from .base import Service
 
 LOGGER = logging.getLogger(__name__)
 # LOGGER.setLevel(logging.DEBUG)
@@ -11,11 +14,13 @@ class ReconnectingSupervisor(object):
 
     """
 
-    def __init__(self, service_factory, *args, **kwargs):
+    def __init__(
+        self, service_factory: Callable[..., Service], *args, **kwargs
+    ) -> None:
         self._reconnect_delay = 0
-        self.service = service_factory(*args, **kwargs)
+        self.service: Service = service_factory(*args, **kwargs)
 
-    def run(self):
+    def run(self) -> None:
         reconnect = True
         while reconnect:
             try:
@@ -25,7 +30,7 @@ class ReconnectingSupervisor(object):
                 break
             reconnect = self._maybe_reconnect()
 
-    def _maybe_reconnect(self):
+    def _maybe_reconnect(self) -> bool:
         if self.service.should_reconnect:
             self.service.stop()
             reconnect_delay = self._get_reconnect_delay()
@@ -34,7 +39,7 @@ class ReconnectingSupervisor(object):
             return True
         return False
 
-    def _get_reconnect_delay(self):
+    def _get_reconnect_delay(self) -> int:
         if self.service.was_consuming:
             self._reconnect_delay = 0
         else:
