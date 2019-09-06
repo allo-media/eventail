@@ -18,9 +18,78 @@ This package also provide some debugging command line tools :
  - a logger that can target specific logs (service & criticity) through topic subscription;
  - a utility to send events on the bus;
  - a utility to send a command on the bus, wait for its result and display the outcome;
- - a utility to monitor events;
- - a utility to monitor commands.
+ - a utility to monitor events and/or commands.
 
 ## Usage
 
+### Utilities
 
+```
+logger.py --help
+usage: logger.py [-h] [--filter [FILTER [FILTER ...]]] amqp_url
+
+Display selected logs in realtime on the given broker
+
+positional arguments:
+  amqp_url              URL of the broker, including credentials
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --filter [FILTER [FILTER ...]]
+                        Log patterns to subscribe to (default to all)
+```
+
+```
+monitor.py --help
+usage: monitor.py [-h] [--events [EVENTS [EVENTS ...]]]
+                  [--commands [COMMANDS [COMMANDS ...]]]
+                  amqp_url
+
+Monitor selected Events and/or Commands on the given broker
+
+positional arguments:
+  amqp_url              URL of the broker, including credentials
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --events [EVENTS [EVENTS ...]]
+                        Event patterns to subscribe to (default to all)
+  --commands [COMMANDS [COMMANDS ...]]
+                        Command patterns to subscribe to (default to all)
+```
+
+```
+publish_event.py --help
+usage: publish_event.py [-h] amqp_url event payload
+
+Publish an Event and its payload on the given broker
+
+positional arguments:
+  amqp_url    URL of the broker, including credentials
+  event       Event Name
+  payload     The path to the file containing the payload, in JSON or
+              CBOR format (from file extension).
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+```
+send_command.py --help
+usage: send_command.py [-h] amqp_url command payload
+
+Send a service command and its payload on the given broker and waits for its result.
+
+positional arguments:
+  amqp_url    URL of the broker, including credentials
+  command     Command in the form service.command
+  payload     The path to the file containing the payload, in JSON or
+              CBOR format (from file extension).
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+### Base class `Service`
+
+*Coming soon…*
