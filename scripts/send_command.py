@@ -51,10 +51,10 @@ if __name__ == "__main__":
     # logger.setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser(
-        description="Send a service command and its payload on the given broker"
+        description="Send a service command and its payload on the given broker and waits for its result."
     )
     parser.add_argument("amqp_url", help="URL of the broker, including credentials")
-    parser.add_argument("command", help="Command in the forme service.command")
+    parser.add_argument("command", help="Command in the form service.command")
     parser.add_argument(
         "payload",
         help="The path to the file containing the payload, in JSON or CBOR format (from file extension).",
