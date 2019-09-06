@@ -1,4 +1,4 @@
-# A base class for asynchoronous services within the Allo-Media event-driven service architecture.
+# A base class for asynchoronous services within the Allo-Media event-driven architecture and debug utilities.
 
 ## Overview
 
@@ -23,6 +23,8 @@ This package also provide some debugging command line tools :
 ## Usage
 
 ### Utilities
+
+Once installed (`pip install -e .`), these commands are in you virtualenv path:
 
 ```
 logger.py --help
