@@ -94,4 +94,4 @@ optional arguments:
 
 ### Base class `Service`
 
-*Coming soon…*
+*Documentation coming soon, meanwhile you can read the code.*
