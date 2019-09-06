@@ -269,7 +269,7 @@ class Service(object):
             and self._command_routing_keys
         ):
             self.setup_queue(exchange_name)
-        else:
+        elif exchange_name != self.LOG_EXCHANGE:
             self._bind_count -= 1
             if self._bind_count == 0:
                 self.set_qos()
@@ -282,9 +282,7 @@ class Service(object):
         :param str|unicode exchange: The name of exchange to bind.
 
         """
-        cb = functools.partial(
-            self.on_queue_declareok, exchange_name=exchange_name
-        )
+        cb = functools.partial(self.on_queue_declareok, exchange_name=exchange_name)
         if self.exclusive_queues:
             LOGGER.info("Declaring exclusive on exchange %s", exchange_name)
             self._channel.queue_declare("", exclusive=True, callback=cb)
@@ -297,9 +295,7 @@ class Service(object):
             LOGGER.info("Declaring queue %s on exchange %s", queue, exchange_name)
             self._channel.queue_declare(queue=queue, durable=True, callback=cb)
 
-    def on_queue_declareok(
-        self, frame: pika.frame.Method, exchange_name: str
-    ) -> None:
+    def on_queue_declareok(self, frame: pika.frame.Method, exchange_name: str) -> None:
         """Method invoked by pika when the Queue.Declare RPC call made in
         setup_queue has completed. In this method we will bind the queue
         and exchange together with the routing key by issuing the Queue.Bind
@@ -310,7 +306,7 @@ class Service(object):
 
         """
         queue_name = frame.method.queue
-        routing_keys: List[str]
+        routing_keys: Sequence[str]
         if exchange_name == self.EVENT_EXCHANGE:
             routing_keys = self._event_routing_keys
             self._event_queue = queue_name
