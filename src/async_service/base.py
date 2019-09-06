@@ -530,17 +530,17 @@ class Service(object):
         LOGGER.info("Received message from %s: %s", exchange, routing_key)
 
         if exchange == self.CMD_EXCHANGE:
-            correlation_id = headers.get("correlation-id", "")
-            return_to = headers.get("return-to", "")
-            status = headers.get("status", "")
-            if not (return_to or status):
+            correlation_id = properties.correlation_id
+            reply_to = properties.reply_to
+            status = headers.get("status", "") if headers else ""
+            if not (reply_to or status):
                 self.log(
                     "error", "invalid enveloppe for command/result: {}".format(headers)
                 )
                 return
-            if return_to:
+            if reply_to:
                 try:
-                    self.handle_command(routing_key, payload, return_to, correlation_id)
+                    self.handle_command(routing_key, payload, reply_to, correlation_id)
                 except Exception as e:
                     # unexpected error
                     self.log(
@@ -555,7 +555,7 @@ class Service(object):
                     # of endless looping!
                     # ch.basic_nack(delivery_tag=basic_deliver.delivery_tag)
                     self.return_error(
-                        return_to,
+                        reply_to,
                         {"reason": "unhandled exception", "message": str(e)},
                         correlation_id,
                     )
@@ -630,6 +630,8 @@ class Service(object):
         routing_key: str,
         message: JSON_MODEL,
         mandatory: bool,
+        reply_to: str = "",
+        correlation_id: str = "",
         headers: Optional[HEADER] = None,
     ) -> None:
         """Send a message.
@@ -644,6 +646,8 @@ class Service(object):
             properties=pika.BasicProperties(
                 delivery_mode=2,  # make message persistent
                 content_type=self._mime_type,
+                reply_to=reply_to,
+                correlation_id=correlation_id,
                 headers=headers,
             ),
         )
@@ -690,7 +694,7 @@ class Service(object):
         self,
         command: str,
         message: JSON_MODEL,
-        return_to: str,
+        reply_to: str,
         correlation_id: str,
         mandatory: bool = False,
     ) -> None:
@@ -700,8 +704,7 @@ class Service(object):
         if `mandatory` is True and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
-        headers = {"return-to": return_to, "correlation-id": correlation_id}
-        self._emit(self.CMD_EXCHANGE, command, message, mandatory, headers=headers)
+        self._emit(self.CMD_EXCHANGE, command, message, mandatory, reply_to=reply_to, correlation_id=correlation_id)
 
     def return_success(
         self,
@@ -716,8 +719,8 @@ class Service(object):
         if `mandatory` is True and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
-        headers = {"correlation-id": correlation_id, "status": "success"}
-        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, headers=headers)
+        headers = {"status": "success"}
+        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, correlation_id=correlation_id, headers=headers)
 
     def return_error(
         self,
@@ -732,8 +735,8 @@ class Service(object):
         if `mandatory` is True and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
-        headers = {"correlation-id": correlation_id, "status": "error"}
-        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, headers=headers)
+        headers = {"status": "error"}
+        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, correlation_id=correlation_id, headers=headers)
 
     def publish_event(
         self, event: str, message: JSON_MODEL, mandatory: bool = False
@@ -802,7 +805,7 @@ class Service(object):
         return NotImplemented
 
     def handle_command(
-        self, command: str, payload: JSON_MODEL, return_to: str, correlation_id: str
+        self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
     ) -> None:
         """Handle incoming commands (to be implemented by subclasses).
 
