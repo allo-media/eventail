@@ -1,18 +1,13 @@
 LIB
 
- * mypy
- * tests
- * CircleCI
- * utilities
- * authentication
- * Failure handling, returned messages
+ * Returned messages
+ * Failure handling
+ * Documentation
  * Experiment with separate connections for consuming and producing
- * AsyncIO connection for easier integration of other async libraries
+ * Async / Await rewrite for easier integration with async ecosystem.
 
 FOR PRODUCTION QUALITY:
 
 * Add handling of refused or unroutable messages
-* Add type annotations
 * More docstrings
-* Add Payload Validation
-* More usefull application logs
+* More docs
