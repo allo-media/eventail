@@ -2,7 +2,8 @@
 # pylint: disable=C0111,C0103,R0205
 
 """
-Forked from pika complete examples.
+A base class implementing AM service architecture and its requirements.
+Inspired from pika complete examples.
 """
 
 import functools
@@ -43,7 +44,7 @@ class Service(object):
     EVENT_EXCHANGE = "events"
     CMD_EXCHANGE = "commands"
     LOG_EXCHANGE = "logs"
-    EVENT_EXCHANGE_TYPE = "direct"
+    EVENT_EXCHANGE_TYPE = "topic"
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
     # In production, experiment with higher prefetch values
@@ -70,12 +71,19 @@ class Service(object):
         self._event_queue = logical_service + "_events"
         self._command_queue = logical_service + "_cmds"
         self._delayed_callbacks: List[Callable] = []
-        self._bind_count = len(self._event_routing_keys) + len(
-            self._command_routing_keys
+        self._bind_count = (len(self._event_routing_keys) or 1) + (
+            len(self._command_routing_keys) or 1
         )
+        self._serialize: Callable[..., bytes] = cbor.dumps
+        self._mime_type = "application/cbor"
         self._connection: pika.SelectConnection
-        self._channel: pika.Channel
-        self._log_channel: pika.Channel
+        self._channel: pika.channel.Channel
+        self._log_channel: pika.channel.Channel
+
+    def use_json(self) -> None:
+        """Force sending message serialized in plain JSON instead of CBOR."""
+        self._serialize = lambda message: json.dumps(message).encode("utf-8")
+        self._mime_type = "application/json"
 
     def reset_connection_state(self) -> None:
         self.should_reconnect = False
@@ -120,7 +128,7 @@ class Service(object):
             LOGGER.info("Closing connection")
             self._connection.close()
 
-    def on_connection_open(self, _unused_connection: pika.Connection) -> None:
+    def on_connection_open(self, _unused_connection: pika.BaseConnection) -> None:
         """This method is called by pika once the connection to RabbitMQ has
         been established. It passes the handle to the connection object in
         case we need it, but in this case, we'll just mark it unused.
@@ -132,7 +140,7 @@ class Service(object):
         self.open_channels()
 
     def on_connection_open_error(
-        self, _unused_connection: pika.Connection, err: Exception
+        self, _unused_connection: pika.BaseConnection, err: Exception
     ) -> None:
         """This method is called by pika if the connection to RabbitMQ
         can't be established.
@@ -145,7 +153,7 @@ class Service(object):
         self.reconnect()
 
     def on_connection_closed(
-        self, _unused_connection: pika.Connection, reason: Exception
+        self, _unused_connection: pika.BaseConnection, reason: Exception
     ) -> None:
         """This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
@@ -186,7 +194,7 @@ class Service(object):
             on_open_callback=functools.partial(self.on_channel_open, main=False)
         )
 
-    def on_channel_open(self, channel: pika.Channel, main: bool) -> None:
+    def on_channel_open(self, channel: pika.channel.Channel, main: bool) -> None:
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
 
@@ -198,18 +206,14 @@ class Service(object):
         LOGGER.info("Channel opened")
         if main:
             self._channel = channel
-            if self._event_routing_keys:
-                self.setup_exchange(
-                    self.EVENT_EXCHANGE, self.EVENT_EXCHANGE_TYPE, channel
-                )
-            if self._command_routing_keys:
-                self.setup_exchange(self.CMD_EXCHANGE, self.CMD_EXCHANGE_TYPE, channel)
+            self.setup_exchange(self.EVENT_EXCHANGE, self.EVENT_EXCHANGE_TYPE, channel)
+            self.setup_exchange(self.CMD_EXCHANGE, self.CMD_EXCHANGE_TYPE, channel)
         else:
             self._log_channel = channel
             self.setup_exchange(self.LOG_EXCHANGE, self.LOG_EXCHANGE_TYPE, channel)
         self.add_on_channel_close_callback(channel)
 
-    def add_on_channel_close_callback(self, channel: pika.Channel) -> None:
+    def add_on_channel_close_callback(self, channel: pika.channel.Channel) -> None:
         """This method tells pika to call the on_channel_closed method if
         RabbitMQ unexpectedly closes the channel.
 
@@ -217,7 +221,9 @@ class Service(object):
         LOGGER.info("Adding channel close callback")
         channel.add_on_close_callback(self.on_channel_closed)
 
-    def on_channel_closed(self, channel: pika.Channel, reason: Exception) -> None:
+    def on_channel_closed(
+        self, channel: pika.channel.Channel, reason: Exception
+    ) -> None:
         """Invoked by pika when RabbitMQ unexpectedly closes the channel.
         Channels are usually closed if you attempt to do something that
         violates the protocol, such as re-declare an exchange or queue with
@@ -232,7 +238,7 @@ class Service(object):
         self.close_connection()
 
     def setup_exchange(
-        self, exchange_name: str, exchange_type: str, channel: pika.Channel
+        self, exchange_name: str, exchange_type: str, channel: pika.channel.Channel
     ) -> None:
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
         command. When it is complete, the on_exchange_declareok method will
@@ -260,8 +266,17 @@ class Service(object):
 
         """
         LOGGER.info("Exchange declared: %s", exchange_name)
-        if exchange_name != self.LOG_EXCHANGE:
+        if (
+            exchange_name == self.EVENT_EXCHANGE
+            and self._event_routing_keys
+            or exchange_name == self.CMD_EXCHANGE
+            and self._command_routing_keys
+        ):
             self.setup_queue(exchange_name)
+        else:
+            self._bind_count -= 1
+            if self._bind_count == 0:
+                self.set_qos()
 
     def setup_queue(self, exchange_name: str) -> None:
         """Setup the queue on RabbitMQ by invoking the Queue.Declare RPC
@@ -422,12 +437,13 @@ class Service(object):
             self._event_consumer_tag = self._channel.basic_consume(
                 self._event_queue, self.on_message
             )
+            self._consuming = True
         if self._command_routing_keys:
             self._command_consumer_tag = self._channel.basic_consume(
                 self._command_queue, self.on_message
             )
+            self._consuming = True
         self.was_consuming = True
-        self._consuming = True
         # restore the delayed callbacks over several seconds to prevent load peak
         for timeout, cb in enumerate(self._delayed_callbacks, 1):
             self.call_later(1 + timeout // 2, cb)
@@ -485,9 +501,9 @@ class Service(object):
 
     def on_message(
         self,
-        ch: pika.Channel,
-        basic_deliver: pika.Spec.Basic.Deliver,
-        properties: pika.Spec.BasicProperties,
+        ch: pika.channel.Channel,
+        basic_deliver: pika.spec.Basic.Deliver,
+        properties: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
         """Invoked by pika when a message is delivered from RabbitMQ. The
@@ -506,9 +522,13 @@ class Service(object):
         headers: HEADER = properties.headers
         print(properties)
         decoder = cbor if properties.content_type == "application/cbor" else json
-        payload: JSON_MODEL = decoder.loads(body) if body else None
-        exchange: str = basic_deliver.exchange
         routing_key: str = basic_deliver.routing_key
+        exchange: str = basic_deliver.exchange
+        try:
+            payload: JSON_MODEL = decoder.loads(body) if body else None
+        except ValueError:
+            self.log("critical", "Unable to decode payload for {}".format(routing_key))
+            return
         LOGGER.info("Received message from %s: %s", exchange, routing_key)
 
         if exchange == self.CMD_EXCHANGE:
@@ -574,7 +594,7 @@ class Service(object):
         Basic.Cancel RPC command.
 
         """
-        if not self._channel.is_closed or self._channel.is_closing:
+        if not (self._channel.is_closed or self._channel.is_closing):
             LOGGER.info("Sending a Basic.Cancel RPC command to RabbitMQ")
             for consumer_tag in (self._event_consumer_tag, self._command_consumer_tag):
                 if consumer_tag is not None:
@@ -602,8 +622,9 @@ class Service(object):
         Channel.Close RPC command.
 
         """
-        LOGGER.info("Closing the channel")
+        LOGGER.info("Closing the channels")
         self._channel.close()
+        self._log_channel.close()
 
     def _emit(
         self,
@@ -620,11 +641,11 @@ class Service(object):
         self._channel.basic_publish(
             exchange=exchange,
             routing_key=routing_key,
-            body=cbor.dumps(message),
+            body=self._serialize(message),
             mandatory=mandatory,
             properties=pika.BasicProperties(
                 delivery_mode=2,  # make message persistent
-                content_type="application/cbor",
+                content_type=self._mime_type,
                 headers=headers,
             ),
         )
