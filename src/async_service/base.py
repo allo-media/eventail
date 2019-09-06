@@ -70,6 +70,7 @@ class Service(object):
         self.logical_service = logical_service
         self._event_queue = logical_service + "_events"
         self._command_queue = logical_service + "_cmds"
+        self.exclusive_queues = False
         self._delayed_callbacks: List[Callable] = []
         self._bind_count = (len(self._event_routing_keys) or 1) + (
             len(self._command_routing_keys) or 1
@@ -79,11 +80,6 @@ class Service(object):
         self._connection: pika.SelectConnection
         self._channel: pika.channel.Channel
         self._log_channel: pika.channel.Channel
-
-    def use_json(self) -> None:
-        """Force sending message serialized in plain JSON instead of CBOR."""
-        self._serialize = lambda message: json.dumps(message).encode("utf-8")
-        self._mime_type = "application/json"
 
     def reset_connection_state(self) -> None:
         self.should_reconnect = False
@@ -286,19 +282,23 @@ class Service(object):
         :param str|unicode exchange: The name of exchange to bind.
 
         """
-        queue = (
-            self._event_queue
-            if exchange_name == self.EVENT_EXCHANGE
-            else self._command_queue
-        )
-        LOGGER.info("Declaring queue %s on exchange %s", queue, exchange_name)
         cb = functools.partial(
-            self.on_queue_declareok, exchange_name=exchange_name, queue_name=queue
+            self.on_queue_declareok, exchange_name=exchange_name
         )
-        self._channel.queue_declare(queue=queue, durable=True, callback=cb)
+        if self.exclusive_queues:
+            LOGGER.info("Declaring exclusive on exchange %s", exchange_name)
+            self._channel.queue_declare("", exclusive=True, callback=cb)
+        else:
+            queue = (
+                self._event_queue
+                if exchange_name == self.EVENT_EXCHANGE
+                else self._command_queue
+            )
+            LOGGER.info("Declaring queue %s on exchange %s", queue, exchange_name)
+            self._channel.queue_declare(queue=queue, durable=True, callback=cb)
 
     def on_queue_declareok(
-        self, _unused_frame: pika.frame.Method, exchange_name: str, queue_name: str
+        self, frame: pika.frame.Method, exchange_name: str
     ) -> None:
         """Method invoked by pika when the Queue.Declare RPC call made in
         setup_queue has completed. In this method we will bind the queue
@@ -306,14 +306,17 @@ class Service(object):
         RPC command. When this command is complete, the on_bindok method will
         be invoked by pika.
 
-        :param pika.frame.Method _unused_frame: The Queue.DeclareOk frame
+        :param pika.frame.Method frame: The Queue.DeclareOk frame
 
         """
-        routing_keys = (
-            self._event_routing_keys
-            if exchange_name == self.EVENT_EXCHANGE
-            else self._command_routing_keys
-        )
+        queue_name = frame.method.queue
+        routing_keys: List[str]
+        if exchange_name == self.EVENT_EXCHANGE:
+            routing_keys = self._event_routing_keys
+            self._event_queue = queue_name
+        else:
+            routing_keys = self._command_routing_keys
+            self._command_queue = queue_name
         LOGGER.info("Binding %s to %s with %s", exchange_name, queue_name, routing_keys)
         for key in routing_keys:
             self._channel.queue_bind(
@@ -520,7 +523,6 @@ class Service(object):
 
         """
         headers: HEADER = properties.headers
-        print(properties)
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
@@ -660,6 +662,19 @@ class Service(object):
         LOGGER.info("Published message # %i", self._message_number)
 
     # Public interface
+
+    def use_json(self) -> None:
+        """Force sending message serialized in plain JSON instead of CBOR."""
+        self._serialize = lambda message: json.dumps(message).encode("utf-8")
+        self._mime_type = "application/json"
+
+    def use_exclusive_queues(self) -> None:
+        """Force usage of exclusive queues.
+
+        This is useful for debug tools that should not leave a queue behind them (overflow ristk)
+        and not interfere between instances.
+        """
+        self.exclusive_queues = True
 
     def log(self, criticity: str, message: str) -> None:
         """Log to the log bus.
