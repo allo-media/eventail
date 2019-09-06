@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='async_service',
-    version='0.4',
+    version='0.5',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -15,7 +15,7 @@ setup(
     license='Proprietary',
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    scripts=[],
+    scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py"],
     install_requires=[
         'pika',
         'cbor'
