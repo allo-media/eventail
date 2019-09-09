@@ -526,6 +526,8 @@ class Service(object):
             payload: JSON_MODEL = decoder.loads(body) if body else None
         except ValueError:
             self.log("critical", "Unable to decode payload for {}".format(routing_key))
+            # FIXME: put to dead letter?
+            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
             return
         LOGGER.info("Received message from %s: %s", exchange, routing_key)
 
@@ -537,6 +539,8 @@ class Service(object):
                 self.log(
                     "error", "invalid enveloppe for command/result: {}".format(headers)
                 )
+                # FIXME: put to dead letter?
+                ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
                 return
             if reply_to:
                 try:
@@ -559,6 +563,7 @@ class Service(object):
                         {"reason": "unhandled exception", "message": str(e)},
                         correlation_id,
                     )
+                    # FIXME: put to dead letter?
                     ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
                 else:
                     ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
@@ -573,6 +578,7 @@ class Service(object):
                         ),
                     )
                 # TODO: retry ?
+                # FIXME: put to dead letter?
                 ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
         else:
             try:
