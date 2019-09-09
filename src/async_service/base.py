@@ -47,6 +47,7 @@ class Service(object):
     EVENT_EXCHANGE_TYPE = "topic"
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
+    RETRY_DELAY = 15  # in seconds
     # In production, experiment with higher prefetch values
     # for higher consumer throughput
     PREFETCH_COUNT = 3
@@ -406,7 +407,9 @@ class Service(object):
             self._nacked += num_confirms
             # The broker in is trouble, resend later
             for i in confirm_range:
-                self.call_later(20, lambda args=self._deliveries[i]: self._emit(*args))
+                self.call_later(
+                    self.RETRY_DELAY, lambda args=self._deliveries[i]: self._emit(*args)
+                )
         for i in confirm_range:
             del self._deliveries[i]
         self._last_confirm = delivery_tag
@@ -462,8 +465,8 @@ class Service(object):
         """Add a callback that will be invoked to return an unroutable message.
 
         """
-        # LOGGER.info('Adding return callback')
-        # self._channel.add_on_return_callback(self.on_message_returned)
+        LOGGER.info("Adding return callback")
+        self._channel.add_on_return_callback(self.on_message_returned)
 
     def on_consumer_cancelled(self, method_frame: pika.frame.Method) -> None:
         """Invoked by pika when RabbitMQ sends a Basic.Cancel for a consumer
@@ -476,27 +479,46 @@ class Service(object):
         if not (self._channel.is_closed or self._channel.is_closing):
             self._channel.close()
 
-    # def on_message_returned(self, ch, basic_return, properties, body):
-    #     """Invoked by pika when a message is returned.
+    def on_message_returned(
+        self,
+        ch: pika.channel.Channel,
+        basic_return: pika.spec.Basic.Return,
+        properties: pika.spec.BasicProperties,
+        body: bytes,
+    ):
+        """Invoked by pika when a message is returned.
 
-    #     A message maybe returned if:
-    #     * it was sent with the `mandatory` flag on True;
-    #     * the broker was unable to route it to a queue.
+        A message maybe returned if:
+        * it was sent with the `mandatory` flag on True;
+        * the broker was unable to route it to a queue.
 
-    #     :param pika.channel.Channel ch: The channel object
-    #     :param pika.Spec.Basic.Return basic_deliver: method
-    #     :param pika.Spec.BasicProperties: properties
-    #     :param bytes body: The message body
-    #     """
-    #     payload = cbor.loads(body) if body else None
-    #     LOGGER.info('Received returned message: %s',
-    #                 basic_return.routing_key)
-    #     domain, action, mtype = split_routing_key(basic_return.routing_key)
-    #     try:
-    #         self.handle_returned_message(domain, action, mtype, payload)
-    #     except Exception as e:
-    #         # unexpected error
-    #         self.log("error", "in handle_returned_message [{}] {}".format(self.logical_service, e))
+        :param pika.channel.Channel ch: The channel object
+        :param pika.Spec.Basic.Return basic_deliver: method
+        :param pika.Spec.BasicProperties: properties
+        :param bytes body: The message body
+        """
+        decoder = cbor if properties.content_type == "application/cbor" else json
+        # If we are not able to decode our own payload, better crash the service now
+        payload: JSON_MODEL = decoder.loads(body) if body else None
+        routing_key: str = basic_return.routing_key
+        envelope: Dict[str, str] = {}
+        if properties.reply_to:
+            envelope["reply_to"] = properties.reply_to
+        if properties.correlation_id:
+            envelope["correlation_id"] = properties.correlation_id
+        if "status" in properties.headers:
+            envelope["status"] = properties.headers["status"]
+        LOGGER.info("Received returned message: %s", routing_key)
+        try:
+            self.handle_returned_message(routing_key, payload, envelope)
+        except Exception as e:
+            # unexpected error
+            self.log(
+                "Critical",
+                "in handle_returned_message [{}] {}".format(self.logical_service, e),
+            )
+            # Crash the service now
+            raise
 
     def on_message(
         self,
@@ -710,7 +732,14 @@ class Service(object):
         if `mandatory` is True and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
-        self._emit(self.CMD_EXCHANGE, command, message, mandatory, reply_to=reply_to, correlation_id=correlation_id)
+        self._emit(
+            self.CMD_EXCHANGE,
+            command,
+            message,
+            mandatory,
+            reply_to=reply_to,
+            correlation_id=correlation_id,
+        )
 
     def return_success(
         self,
@@ -726,7 +755,14 @@ class Service(object):
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
         headers = {"status": "success"}
-        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, correlation_id=correlation_id, headers=headers)
+        self._emit(
+            self.CMD_EXCHANGE,
+            destination,
+            message,
+            mandatory,
+            correlation_id=correlation_id,
+            headers=headers,
+        )
 
     def return_error(
         self,
@@ -742,7 +778,14 @@ class Service(object):
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
         headers = {"status": "error"}
-        self._emit(self.CMD_EXCHANGE, destination, message, mandatory, correlation_id=correlation_id, headers=headers)
+        self._emit(
+            self.CMD_EXCHANGE,
+            destination,
+            message,
+            mandatory,
+            correlation_id=correlation_id,
+            headers=headers,
+        )
 
     def publish_event(
         self, event: str, message: JSON_MODEL, mandatory: bool = False
@@ -832,14 +875,16 @@ class Service(object):
         """
         return NotImplemented
 
-    # def handle_returned_message(self, domain, action, mtype, payload):
-    #     """Invoked when a message is returned (to be implemented by subclasses).
+    def handle_returned_message(
+        self, key: str, payload: JSON_MODEL, envelope: Dict[str, str]
+    ):
+        """Invoked when a message is returned (to be implemented by subclasses).
 
-    #     A message maybe returned if:
-    #     * it was sent with the `mandatory` flag on True;
-    #     * and the broker was unable to route it to a queue.
-    #     """
-    #     pass
+        A message maybe returned if:
+        * it was sent with the `mandatory` flag on True;
+        * and the broker was unable to route it to a queue.
+        """
+        pass
 
     def on_ready(self) -> None:
         """Code to execute once the service comes online.
