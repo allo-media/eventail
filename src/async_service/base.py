@@ -724,7 +724,7 @@ class Service(object):
         message: JSON_MODEL,
         reply_to: str,
         correlation_id: str,
-        mandatory: bool = False,
+        mandatory: bool = True,
     ) -> None:
         """Send a command message.
 
@@ -746,7 +746,7 @@ class Service(object):
         destination: str,
         message: JSON_MODEL,
         correlation_id: str,
-        mandatory: bool = False,
+        mandatory: bool = True,
     ) -> None:
         """Send a successful result message.
 
@@ -769,7 +769,7 @@ class Service(object):
         destination: str,
         message: JSON_MODEL,
         correlation_id: str,
-        mandatory: bool = False,
+        mandatory: bool = True,
     ) -> None:
         """Send a failure notification.
 
