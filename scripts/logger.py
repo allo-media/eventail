@@ -21,7 +21,9 @@ class Logger:
         channel = connection.channel()
 
         channel.exchange_declare(
-            exchange=self.LOG_EXCHANGE, exchange_type=self.LOG_EXCHANGE_TYPE
+            exchange=self.LOG_EXCHANGE,
+            exchange_type=self.LOG_EXCHANGE_TYPE,
+            durable=True,
         )
 
         # We declare a transient queue because we don't want to fill-up rabbitmq
