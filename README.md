@@ -22,6 +22,18 @@ This package also provide some debugging command line tools :
 
 ## Usage
 
+### Dead letters
+
+```
+rabbitmqctl set_policy DLX ".*_events" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
+```
+
+```
+rabbitmqctl set_policy DLX ".*_cmds" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
+```
+
+The `am-dlx` topic exchange should be created too and some listening queues too.
+
 ### Utilities
 
 Once installed (`pip install -e .`), these commands are in you virtualenv path:
