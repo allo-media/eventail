@@ -164,17 +164,20 @@ class Service(object):
         if self._closing:
             self._connection.ioloop.stop()
         else:
-            LOGGER.warning("Connection closed, reconnect necessary: %s", reason)
-            self.reconnect()
+            LOGGER.warning("Connection closed, for reason: %s", reason)
+            if getattr(reason, "reply_code", -1) == 320:
+                self.reconnect(True)
+            else:
+                self.reconnect(False)
 
-    def reconnect(self) -> None:
+    def reconnect(self, should_reconnect=True) -> None:
         """Will be invoked if the connection can't be opened or is
         closed. Indicates that a reconnect is necessary then stops the
         ioloop.
 
         """
         self.save_pending_callbacks()
-        self.should_reconnect = True
+        self.should_reconnect = should_reconnect
         self.stop()
 
     def open_channels(self) -> None:
@@ -249,7 +252,10 @@ class Service(object):
         # how arbitrary data can be passed to the callback when it is called
         cb = functools.partial(self.on_exchange_declareok, exchange_name=exchange_name)
         channel.exchange_declare(
-            exchange=exchange_name, exchange_type=exchange_type, callback=cb
+            exchange=exchange_name,
+            exchange_type=exchange_type,
+            callback=cb,
+            durable=True,
         )
 
     def on_exchange_declareok(
@@ -506,7 +512,7 @@ class Service(object):
             envelope["reply_to"] = properties.reply_to
         if properties.correlation_id:
             envelope["correlation_id"] = properties.correlation_id
-        if "status" in properties.headers:
+        if properties.headers and "status" in properties.headers:
             envelope["status"] = properties.headers["status"]
         LOGGER.info("Received returned message: %s", routing_key)
         try:
@@ -518,7 +524,7 @@ class Service(object):
                 "in handle_returned_message [{}] {}".format(self.logical_service, e),
             )
             # Crash the service now
-            raise
+            self.stop()
 
     def on_message(
         self,
@@ -547,9 +553,12 @@ class Service(object):
         try:
             payload: JSON_MODEL = decoder.loads(body) if body else None
         except ValueError:
-            self.log("critical", "Unable to decode payload for {}".format(routing_key))
-            # FIXME: put to dead letter?
-            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
+            self.log(
+                "Error",
+                "Unable to decode payload for {}; dead lettering.".format(routing_key),
+            )
+            # Unrecoverable, put to dead letter
+            ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
             return
         LOGGER.info("Received message from %s: %s", exchange, routing_key)
 
@@ -559,60 +568,110 @@ class Service(object):
             status = headers.get("status", "") if headers else ""
             if not (reply_to or status):
                 self.log(
-                    "error", "invalid enveloppe for command/result: {}".format(headers)
-                )
-                # FIXME: put to dead letter?
-                ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-                return
-            if reply_to:
-                try:
-                    self.handle_command(routing_key, payload, reply_to, correlation_id)
-                except Exception as e:
-                    # unexpected error
-                    self.log(
-                        "error",
-                        "Unexpected error while processing command {}: {}".format(
-                            routing_key, e
-                        ),
-                    )
-                    # if we `ack` the message it will be discarded by the broker
-                    # if we `nack` it, it will be kept in the queue and represented
-                    # so if it is a transient error, it's ok to `nack` but bewared
-                    # of endless looping!
-                    # ch.basic_nack(delivery_tag=basic_deliver.delivery_tag)
-                    self.return_error(
-                        reply_to,
-                        {"reason": "unhandled exception", "message": str(e)},
-                        correlation_id,
-                    )
-                    # FIXME: put to dead letter?
-                    ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-                else:
-                    ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-            else:
-                try:
-                    self.handle_result(routing_key, payload, status, correlation_id)
-                except Exception as e:
-                    self.log(
-                        "error",
-                        "Unexpected error while processing result {}: {}".format(
-                            routing_key, e
-                        ),
-                    )
-                # TODO: retry ?
-                # FIXME: put to dead letter?
-                ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-        else:
-            try:
-                self.handle_event(routing_key, payload)
-            except Exception as e:
-                self.log(
                     "error",
-                    "Unexpected error while processing result {}: {}".format(
-                        routing_key, e
+                    "invalid enveloppe for command/result: {}; dead lettering.".format(
+                        headers
                     ),
                 )
-            # TODO: retry ?
+                # Unrecoverable. Put to dead letter
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
+                return
+            if reply_to:
+                self.on_command(
+                    ch, routing_key, payload, reply_to, correlation_id, basic_deliver
+                )
+            else:
+                self.on_result(
+                    ch, routing_key, payload, status, correlation_id, basic_deliver
+                )
+        else:
+            self.on_event(ch, routing_key, payload, basic_deliver)
+
+    def on_command(
+        self,
+        ch: pika.channel.Channel,
+        routing_key: str,
+        payload: JSON_MODEL,
+        reply_to: str,
+        correlation_id: str,
+        basic_deliver: pika.spec.Basic.Deliver,
+    ) -> None:
+        try:
+            self.handle_command(routing_key, payload, reply_to, correlation_id)
+        except Exception as e:
+            # unexpected error
+            self.log(
+                "error",
+                "Unexpected error while processing command {}: {}".format(
+                    routing_key, e
+                ),
+            )
+            # requeue once
+            if not basic_deliver.redelivered:
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
+            else:
+                # return error to sender
+                self.return_error(
+                    reply_to,
+                    {"reason": "unhandled exception", "message": str(e)},
+                    correlation_id,
+                )
+                ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
+        else:
+            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
+
+    def on_result(
+        self,
+        ch: pika.channel.Channel,
+        routing_key: str,
+        payload: JSON_MODEL,
+        status: str,
+        correlation_id: str,
+        basic_deliver: pika.spec.Basic.Deliver,
+    ) -> None:
+        try:
+            self.handle_result(routing_key, payload, status, correlation_id)
+        except Exception as e:
+            self.log(
+                "error",
+                "Unexpected error while processing result {}: {}".format(
+                    routing_key, e
+                ),
+            )
+            # retry once
+            if not basic_deliver.redelivered:
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
+            else:
+                # dead letter
+                self.log("error", "Giving up on {}: {}".format(routing_key, e))
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
+        else:
+            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
+
+    def on_event(
+        self,
+        ch: pika.channel.Channel,
+        routing_key: str,
+        payload: JSON_MODEL,
+        basic_deliver: pika.spec.Basic.Deliver,
+    ) -> None:
+        try:
+            self.handle_event(routing_key, payload)
+        except Exception as e:
+            self.log(
+                "error",
+                "Unexpected error while processing result {}: {}".format(
+                    routing_key, e
+                ),
+            )
+            # retry once
+            if not basic_deliver.redelivered:
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
+            else:
+                # dead letter
+                self.log("error", "Giving up on {}: {}".format(routing_key, e))
+                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
+        else:
             ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
 
     def stop_consuming(self) -> None:
