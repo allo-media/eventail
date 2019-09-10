@@ -19,11 +19,12 @@ This package also provide some debugging command line tools :
  - a utility to send events on the bus;
  - a utility to send a command on the bus, wait for its result and display the outcome;
  - a utility to monitor events and/or commands;
- - a utility to inspect queues.
+ - a utility to inspect queues;
+ - and a utility to resurrect (reply) dead messages.
 
-## Usage
+### Note about dead letters
 
-### Dead letters
+The base code  does not create the dead-letters exchange (DLX) for you, nor the queues. It's good practice to do it once and configure the queues with a policy :
 
 ```
 rabbitmqctl set_policy DLX ".*_events" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
@@ -33,7 +34,9 @@ rabbitmqctl set_policy DLX ".*_events" '{"dead-letter-exchange":"am-dlx"}' --app
 rabbitmqctl set_policy DLX ".*_cmds" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
 ```
 
-The `am-dlx` topic exchange should be created too and some listening queues too.
+Note that a policy applies to existing **and future** queues as well, so you don't have to reissue those commands each time a new service appears!
+
+## Usage
 
 ### Utilities
 
@@ -119,6 +122,21 @@ optional arguments:
   -h, --help     show this help message and exit
   --count COUNT  Number of message to dump.
   ```
+
+```
+resurrect.py --help
+usage: resurrect.py [-h] [--count COUNT] amqp_url queue
+
+Resend dead letters.
+
+positional arguments:
+  amqp_url       URL of the broker, including credentials.
+  queue          Name of dead-letter queue.
+
+optional arguments:
+  -h, --help     show this help message and exit
+  --count COUNT  Number of message to resurrect (default is 0 = all).
+```
 
 
 ### Base class `Service`

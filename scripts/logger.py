@@ -16,8 +16,8 @@ class Logger:
     LOG_EXCHANGE = "logs"
     LOG_EXCHANGE_TYPE = "topic"
 
-    def __init__(self, host, routing_keys):
-        connection = pika.BlockingConnection(pika.URLParameters(host))
+    def __init__(self, url, routing_keys):
+        connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
 
         channel.exchange_declare(

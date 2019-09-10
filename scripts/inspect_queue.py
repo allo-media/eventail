@@ -69,7 +69,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("amqp_url", help="URL of the broker, including credentials.")
     parser.add_argument("queue", help="Name of queue to inspect.")
-    parser.add_argument("--count", help="Number of message to dump.", type=int, default=0)
+    parser.add_argument("--count", help="Number of message to dump (default is 0 = all).", type=int, default=0)
     # parser.add_argument(
     #     "--filter",
     #     help="Log patterns to subscribe to (default to all)",
