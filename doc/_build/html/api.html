@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>API Documentation &#8212; async-service 0.6 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Welcome to async-service’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="api-documentation">
+<h1>API Documentation<a class="headerlink" href="#api-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="continuation-based-api">
+<h2>Continuation based API<a class="headerlink" href="#continuation-based-api" title="Permalink to this headline">¶</a></h2>
+<p>This module is for <em>callbacks</em> style of asynchronous application development.</p>
+<p>We depend on the <cite>pika</cite> library for lower level communication and event loop.</p>
+<dl class="class">
+<dt id="async_service.base.Service">
+<em class="property">class </em><code class="sig-prename descclassname">async_service.base.</code><code class="sig-name descname">Service</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.base.Service" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is an example service that will handle unexpected interactions
+with RabbitMQ such as channel and connection closures.</p>
+<p>If RabbitMQ closes the connection, this class will stop and indicate
+that reconnection is necessary. You should look at the output, as
+there are limited reasons why the connection may be closed, which
+usually are tied to permission related issues or socket timeouts.</p>
+<p>If the channel is closed, it will indicate a problem with one of the
+commands that were issued and that should surface in the output as well.</p>
+<p>To leverage the binary nature of AMQP messages, we use CBOR instead of
+JSON as data serialization (transparent). Moreover, CBOR is much faster
+and much more compact than JSON.</p>
+<dl class="method">
+<dt id="async_service.base.Service.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new instance of the consumer class, passing in the AMQP
+URL used to connect to RabbitMQ.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>amqp_url</strong> (<em>str</em>) – The AMQP url to connect with</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.call_later">
+<code class="sig-name descname">call_later</code><span class="sig-paren">(</span><em class="sig-param">delay: int</em>, <em class="sig-param">callback: Callable</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.call_later" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call <cite>callback</cite> after <cite>delay</cite> seconds.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.handle_command">
+<code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_command" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming commands (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).
+Expected errors should be returned with the <code class="docutils literal notranslate"><span class="pre">return_error</span></code> method.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.handle_event">
+<code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming event (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead
+(see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.handle_result">
+<code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming result (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">key</span></code> is the routing key and <code class="docutils literal notranslate"><span class="pre">status</span></code> is either “success” or “error”.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.handle_returned_message">
+<code class="sig-name descname">handle_returned_message</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], envelope: Dict[str, str]</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.base.Service.handle_returned_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invoked when a message is returned (to be implemented by subclasses).</p>
+<p>A message maybe returned if:
+* it was sent with the <cite>mandatory</cite> flag on True;
+* and the broker was unable to route it to a queue.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.log">
+<code class="sig-name descname">log</code><span class="sig-paren">(</span><em class="sig-param">criticity: str</em>, <em class="sig-param">message: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log to the log bus.</p>
+<p>Parameters are unicode strings.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.on_ready">
+<code class="sig-name descname">on_ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.on_ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute once the service comes online.</p>
+<p>(to be implemented by subclasses)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.publish_event">
+<code class="sig-name descname">publish_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, message: Dict[str, Any], mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.publish_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Publish an event on the bus.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">event</span></code> is the name of the event,
+and the <cite>message</cite> is any data conforming to the JSON model.</p>
+<p>If <cite>mandatory</cite> is True and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.
+The default is False because some events maybe unused yet.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.return_error">
+<code class="sig-name descname">return_error</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.return_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a failure result message.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+If <cite>mandatory</cite> is True (default) and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.return_success">
+<code class="sig-name descname">return_success</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.return_success" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a successful result message.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+if <cite>mandatory</cite> is True (default) and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the service by connecting to RabbitMQ and then
+starting the IOLoop to block and allow the SelectConnection to operate.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.send_command">
+<code class="sig-name descname">send_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, message: Dict[str, Any], reply_to: str, correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.send_command" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a command message.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+if <cite>mandatory</cite> is True (default) and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.stop">
+<code class="sig-name descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cleanly shutdown the connection to RabbitMQ by stopping the consumer
+with RabbitMQ. When RabbitMQ confirms the cancellation, on_cancelok
+will be invoked by pika, which will then closing the channel and
+connection. The IOLoop is started again if this method is invoked
+when CTRL-C is pressed raising a KeyboardInterrupt exception. This
+exception stops the IOLoop which needs to be running for pika to
+communicate with RabbitMQ. All of the commands issued prior to starting
+the IOLoop will be buffered but not processed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.use_exclusive_queues">
+<code class="sig-name descname">use_exclusive_queues</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.use_exclusive_queues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force usage of exclusive queues.</p>
+<p>This is useful for debug tools that should not leave a queue behind them (overflow risk)
+and not interfere between instances.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.base.Service.use_json">
+<code class="sig-name descname">use_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.use_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force sending message serialized in plain JSON instead of CBOR.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="async_service.supervisor.ReconnectingSupervisor">
+<em class="property">class </em><code class="sig-prename descclassname">async_service.supervisor.</code><code class="sig-name descname">ReconnectingSupervisor</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.base.Service], *args, **kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is an example supervisor that will reconnect if the nested
+Service indicates that a reconnect is necessary.</p>
+<dl class="method">
+<dt id="async_service.supervisor.ReconnectingSupervisor.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.base.Service], *args, **kwargs</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Supervises a service and manages automatic reconnection.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">*args</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs**</span></code> are passed unchanged to the
+<code class="docutils literal notranslate"><span class="pre">service_factory</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.supervisor.ReconnectingSupervisor.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the service until the service chooses to exit without reconnecting.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">async-service</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#continuation-based-api">Continuation based API</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to async-service’s documentation!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, AlloMedia.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/api.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
