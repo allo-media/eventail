@@ -120,7 +120,7 @@ positional arguments:
 
 optional arguments:
   -h, --help     show this help message and exit
-  --count COUNT  Number of message to dump.
+  --count COUNT  Number of message to dump (default is 0 = all).
   ```
 
 ```
