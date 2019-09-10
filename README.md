@@ -141,4 +141,4 @@ optional arguments:
 
 ### Base class `Service`
 
-*Documentation coming soon, meanwhile you can read the code.*
+The API documentation is [there](doc/_build/html/api.html).
