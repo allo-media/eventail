@@ -24,7 +24,7 @@ This package also provide some debugging command line tools :
 
 ### Note about dead letters
 
-The base code  does not create the dead-letters exchange (DLX) for you, nor the queues. It's good practice to do it once and configure the queues with a policy :
+The base code  does not create the dead-letters exchange (DLX) for you, nor the dead-letter queues. It's good practice to do it once and configure the queues with a policy :
 
 ```
 rabbitmqctl set_policy DLX ".*_events" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
