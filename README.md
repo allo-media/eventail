@@ -38,6 +38,12 @@ Note that a policy applies to existing **and future** queues as well, so you don
 
 ## Usage
 
+
+### API
+
+The API documentation is [there](https://allo-media.github.io/async-service/_build/html/api.html).
+
+
 ### Utilities
 
 Once installed (`pip install -e .`), these commands are in you virtualenv path:
@@ -138,7 +144,3 @@ optional arguments:
   --count COUNT  Number of message to resurrect (default is 0 = all).
 ```
 
-
-### Base class `Service`
-
-The API documentation is [there](https://allo-media.github.io/async-service/_build/html/api.html).
