@@ -16,12 +16,14 @@ class Logger:
     LOG_EXCHANGE = "logs"
     LOG_EXCHANGE_TYPE = "topic"
 
-    def __init__(self, host, routing_keys):
-        connection = pika.BlockingConnection(pika.URLParameters(host))
+    def __init__(self, url, routing_keys):
+        connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
 
         channel.exchange_declare(
-            exchange=self.LOG_EXCHANGE, exchange_type=self.LOG_EXCHANGE_TYPE
+            exchange=self.LOG_EXCHANGE,
+            exchange_type=self.LOG_EXCHANGE_TYPE,
+            durable=True,
         )
 
         # We declare a transient queue because we don't want to fill-up rabbitmq
