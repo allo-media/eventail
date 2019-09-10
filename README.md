@@ -20,7 +20,7 @@ This package also provide some debugging command line tools :
  - a utility to send a command on the bus, wait for its result and display the outcome;
  - a utility to monitor events and/or commands;
  - a utility to inspect queues;
- - and a utility to resurrect (reply) dead messages.
+ - and a utility to resurrect (replay) dead messages.
 
 ### Note about dead letters
 
