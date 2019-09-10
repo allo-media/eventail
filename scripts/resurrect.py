@@ -13,7 +13,6 @@ from pika.exceptions import (
 
 
 class Resurrection:
-
     def __init__(self, url: str, queue: str, count: int = 0) -> None:
         connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
@@ -22,11 +21,9 @@ class Resurrection:
         queue_name = result.method.queue
         self._count = result.method.message_count if count == 0 else count
         self._seen = 0
-        self.messages: List[Tuple[
-            pika.spec.Basic.Deliver,
-            pika.spec.BasicProperties,
-            bytes
-        ]] = []
+        self.messages: List[
+            Tuple[pika.spec.Basic.Deliver, pika.spec.BasicProperties, bytes]
+        ] = []
 
         channel.basic_consume(
             queue=queue_name, on_message_callback=self.callback, auto_ack=False
@@ -87,12 +84,15 @@ class Resurrection:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Resend dead letters."
-    )
+    parser = argparse.ArgumentParser(description="Resend dead letters.")
     parser.add_argument("amqp_url", help="URL of the broker, including credentials.")
     parser.add_argument("queue", help="Name of dead-letter queue.")
-    parser.add_argument("--count", help="Number of message to resurrect (default is 0 = all).", type=int, default=0)
+    parser.add_argument(
+        "--count",
+        help="Number of message to resurrect (default is 0 = all).",
+        type=int,
+        default=0,
+    )
     # parser.add_argument(
     #     "--filter",
     #     help="Log patterns to subscribe to (default to all)",

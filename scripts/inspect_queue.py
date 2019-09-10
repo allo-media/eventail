@@ -2,7 +2,6 @@
 import argparse
 import json
 import pprint
-import time
 
 import cbor
 
@@ -16,7 +15,6 @@ from pika.exceptions import (
 
 
 class Inspector:
-
     def __init__(self, host, queue, count=0):
         connection = pika.BlockingConnection(pika.URLParameters(host))
         channel = connection.channel()
@@ -34,7 +32,9 @@ class Inspector:
         self._connection = connection
 
     def callback(self, ch, method, properties, body):
-        decode = json.loads if properties.content_type == 'application/json' else cbor.loads
+        decode = (
+            json.loads if properties.content_type == "application/json" else cbor.loads
+        )
         print("[{}]".format(method.routing_key))
         pprint.pprint(properties)
         pprint.pprint(method)
@@ -69,7 +69,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("amqp_url", help="URL of the broker, including credentials.")
     parser.add_argument("queue", help="Name of queue to inspect.")
-    parser.add_argument("--count", help="Number of message to dump (default is 0 = all).", type=int, default=0)
+    parser.add_argument(
+        "--count",
+        help="Number of message to dump (default is 0 = all).",
+        type=int,
+        default=0,
+    )
     # parser.add_argument(
     #     "--filter",
     #     help="Log patterns to subscribe to (default to all)",
