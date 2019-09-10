@@ -18,7 +18,8 @@ This package also provide some debugging command line tools :
  - a logger that can target specific logs (service & criticity) through topic subscription;
  - a utility to send events on the bus;
  - a utility to send a command on the bus, wait for its result and display the outcome;
- - a utility to monitor events and/or commands.
+ - a utility to monitor events and/or commands;
+ - a utility to inspect queues.
 
 ## Usage
 
@@ -103,6 +104,22 @@ positional arguments:
 optional arguments:
   -h, --help  show this help message and exit
 ```
+
+```
+inspect_queue.py --help
+usage: inspect_queue.py [-h] [--count COUNT] amqp_url queue
+
+Dump the content of a queue without consuming it.
+
+positional arguments:
+  amqp_url       URL of the broker, including credentials.
+  queue          Name of queue to inspect.
+
+optional arguments:
+  -h, --help     show this help message and exit
+  --count COUNT  Number of message to dump.
+  ```
+
 
 ### Base class `Service`
 
