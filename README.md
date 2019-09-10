@@ -141,4 +141,4 @@ optional arguments:
 
 ### Base class `Service`
 
-The API documentation is [there](doc/_build/html/api.html).
+The API documentation is [there](https://allo-media.github.io/async-service/_build/html/api.html).
