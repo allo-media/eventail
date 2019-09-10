@@ -771,7 +771,7 @@ class Service(object):
     def use_exclusive_queues(self) -> None:
         """Force usage of exclusive queues.
 
-        This is useful for debug tools that should not leave a queue behind them (overflow ristk)
+        This is useful for debug tools that should not leave a queue behind them (overflow risk)
         and not interfere between instances.
         """
         self.exclusive_queues = True
@@ -801,7 +801,7 @@ class Service(object):
         """Send a command message.
 
         The `message` is any data conforming to the JSON model.
-        if `mandatory` is True and you have implemented
+        if `mandatory` is True (default) and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
         self._emit(
@@ -823,7 +823,7 @@ class Service(object):
         """Send a successful result message.
 
         The `message` is any data conforming to the JSON model.
-        if `mandatory` is True and you have implemented
+        if `mandatory` is True (default) and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
         headers = {"status": "success"}
@@ -843,10 +843,10 @@ class Service(object):
         correlation_id: str,
         mandatory: bool = True,
     ) -> None:
-        """Send a failure notification.
+        """Send a failure result message.
 
         The `message` is any data conforming to the JSON model.
-        if `mandatory` is True and you have implemented
+        If `mandatory` is True (default) and you have implemented
         `handle_returned_message`, then it will be called if your message
         is unroutable."""
         headers = {"status": "error"}
@@ -862,6 +862,16 @@ class Service(object):
     def publish_event(
         self, event: str, message: JSON_MODEL, mandatory: bool = False
     ) -> None:
+        """Publish an event on the bus.
+
+        The ``event`` is the name of the event,
+        and the `message` is any data conforming to the JSON model.
+
+        If `mandatory` is True and you have implemented
+        `handle_returned_message`, then it will be called if your message
+        is unroutable.
+        The default is False because some events maybe unused yet.
+        """
         self._emit(self.EVENT_EXCHANGE, event, message, mandatory)
 
     def call_later(self, delay: int, callback: Callable) -> None:
@@ -869,9 +879,8 @@ class Service(object):
         self._connection.ioloop.call_later(delay, callback)
 
     def run(self) -> None:
-        """Run the example consumer by connecting to RabbitMQ and then
+        """Run the service by connecting to RabbitMQ and then
         starting the IOLoop to block and allow the SelectConnection to operate.
-
         """
         self._connection = self.connect()
         self._connection.ioloop.start()
@@ -880,7 +889,7 @@ class Service(object):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
         with RabbitMQ. When RabbitMQ confirms the cancellation, on_cancelok
         will be invoked by pika, which will then closing the channel and
-        connection. The IOLoop is started again because this method is invoked
+        connection. The IOLoop is started again if this method is invoked
         when CTRL-C is pressed raising a KeyboardInterrupt exception. This
         exception stops the IOLoop which needs to be running for pika to
         communicate with RabbitMQ. All of the commands issued prior to starting
@@ -907,8 +916,8 @@ class Service(object):
         """Handle incoming event (to be implemented by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
-        You should never do any filtering here: use the routing keys intead (see `__init__()`).
-        Expected errors should be converted to #.failed messages
+        You should never do any filtering here: use the routing keys intead
+        (see ``__init__()``).
         """
         return NotImplemented
 
@@ -918,19 +927,21 @@ class Service(object):
         """Handle incoming commands (to be implemented by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
-        You should never do any filtering here: use the routing keys intead (see `__init__()`).
-        Expected errors should be converted to #.failed messages
+        You should never do any filtering here: use the routing keys intead (see ``__init__()``).
+        Expected errors should be returned with the ``return_error`` method.
         """
         return NotImplemented
 
     def handle_result(
         self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
     ) -> None:
-        """Handle incoming commands (to be implemented by subclasses).
+        """Handle incoming result (to be implemented by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
-        You should never do any filtering here: use the routing keys intead (see `__init__()`).
-        Expected errors should be converted to #.failed messages
+        You should never do any filtering here: use the routing keys intead (see ``__init__()``).
+
+        The ``key`` is the routing key and ``status`` is either "success" or "error".
+
         """
         return NotImplemented
 

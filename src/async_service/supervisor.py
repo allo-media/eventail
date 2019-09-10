@@ -10,17 +10,23 @@ LOGGER = logging.getLogger(__name__)
 
 class ReconnectingSupervisor(object):
     """This is an example supervisor that will reconnect if the nested
-    ExampleConsumer indicates that a reconnect is necessary.
+    Service indicates that a reconnect is necessary.
 
     """
 
     def __init__(
         self, service_factory: Callable[..., Service], *args, **kwargs
     ) -> None:
+        """Supervises a service and manages automatic reconnection.
+
+        The ``*args`` and ``**kwargs**`` are passed unchanged to the
+        ``service_factory``.
+        """
         self._reconnect_delay = 0
         self.service: Service = service_factory(*args, **kwargs)
 
     def run(self) -> None:
+        """Run the service until the service chooses to exit without reconnecting."""
         reconnect = True
         while reconnect:
             try:
