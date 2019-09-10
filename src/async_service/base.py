@@ -748,6 +748,19 @@ class Service(object):
         )
         LOGGER.info("Published message # %i", self._message_number)
 
+    def save_pending_callbacks(self) -> None:
+        self._delayed_callbacks.extend(
+            [
+                timeout.callback
+                for timeout in sorted(
+                    self._connection.ioloop._timer._timeout_heap,
+                    key=lambda t: t.deadline,
+                )
+                if timeout.callback is not None
+                and timeout.callback.__name__ == "<lambda>"
+            ]
+        )
+
     # Public interface
 
     def use_json(self) -> None:
@@ -854,19 +867,6 @@ class Service(object):
     def call_later(self, delay: int, callback: Callable) -> None:
         """Call `callback` after `delay` seconds."""
         self._connection.ioloop.call_later(delay, callback)
-
-    def save_pending_callbacks(self) -> None:
-        self._delayed_callbacks.extend(
-            [
-                timeout.callback
-                for timeout in sorted(
-                    self._connection.ioloop._timer._timeout_heap,
-                    key=lambda t: t.deadline,
-                )
-                if timeout.callback is not None
-                and timeout.callback.__name__ == "<lambda>"
-            ]
-        )
 
     def run(self) -> None:
         """Run the example consumer by connecting to RabbitMQ and then
