@@ -7,7 +7,7 @@ import os.path
 import cbor
 import pika
 
-from async_service import Service
+from async_service.pika import Service
 
 
 class EventSender(Service):
