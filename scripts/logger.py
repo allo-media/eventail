@@ -80,7 +80,9 @@ if __name__ == "__main__":
         try:
             logger = Logger(args.amqp_url, args.filter)
         except AMQPConnectionError:
+            print("could not connect; retry…")
             time.sleep(2)
             continue
+        print("connected!")
         expected_stop = logger.run()
     print("bye!")
