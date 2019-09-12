@@ -243,7 +243,6 @@ class Service:
                 # retry later
                 await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
             except RuntimeError as e:
-                print("attempt")
                 if "closed" not in e.args[0]:
                     await self.stop()
                     raise
