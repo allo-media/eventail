@@ -31,7 +31,7 @@ class Service:
         event_routing_keys: Sequence[str],
         command_routing_keys: Sequence[str],
         logical_service: str,
-        loop: Optional[asyncio.AbstractEventLoop] = None
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         """Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -55,7 +55,7 @@ class Service:
         self._event_consumer_tag: str
         self._command_consumer_tag: str
 
-    def on_connection_closed(self, _closing: asyncio.Future) -> None:
+    def on_connection_closed(self, closing: asyncio.Future) -> None:
         if self._should_reconnect:
             self.create_task(self.connect())
         else:
@@ -242,6 +242,13 @@ class Service:
                     raise ValueError(f"{routing_key} is unroutable")
                 # retry later
                 await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
+            except RuntimeError as e:
+                print("attempt")
+                if "closed" not in e.args[0]:
+                    await self.stop()
+                    raise
+                else:
+                    break
             else:
                 break
 
@@ -295,7 +302,9 @@ class Service:
                     events_ok.queue, self.EVENT_EXCHANGE, routing_key=key
                 )
                 # returns ConsumeOK, which has consumer_tag attribute
-                res = await self._channel.basic_consume(events_ok.queue, self.on_message)
+                res = await self._channel.basic_consume(
+                    events_ok.queue, self.on_message
+                )
                 self._event_consumer_tag = res.consumer_tag
 
         if self._command_routing_keys:
@@ -347,11 +356,19 @@ class Service:
         Parameters are unicode strings.
         """
         # no persistent messages, no delivery confirmations
-        await self._log_channel.basic_publish(
-            "[{}-{}] {}".format(self.logical_service, self.ID, message).encode("utf-8"),
-            exchange=self.LOG_EXCHANGE,
-            routing_key="{}.{}".format(self.logical_service, criticity),
-        )
+
+        try:
+            await self._log_channel.basic_publish(
+                "[{}-{}] {}".format(self.logical_service, self.ID, message).encode(
+                    "utf-8"
+                ),
+                exchange=self.LOG_EXCHANGE,
+                routing_key="{}.{}".format(self.logical_service, criticity),
+            )
+        except RuntimeError as e:
+            if "closed" not in e.args[0]:
+                await self.stop()
+                raise
 
     async def send_command(
         self,
