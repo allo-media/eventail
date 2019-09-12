@@ -20,7 +20,7 @@ class Service:
     EVENT_EXCHANGE_TYPE = "topic"
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
-    RETRY_DELAY = 15  # in seconds
+    RETRY_DELAY = 5  # in seconds
     # In production, experiment with higher prefetch values
     # for higher consumer throughput
     PREFETCH_COUNT = 3
@@ -31,6 +31,7 @@ class Service:
         event_routing_keys: Sequence[str],
         command_routing_keys: Sequence[str],
         logical_service: str,
+        loop: Optional[asyncio.AbstractEventLoop] = None
     ) -> None:
         """Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -42,14 +43,23 @@ class Service:
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
+        self.loop = loop
         self.exclusive_queues = False
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"
+        self._should_reconnect = True
+        self.stopped = asyncio.Event(loop=loop)
         self._connection: aiormq.Connection
         self._channel: aiormq.Channel
         self._log_channel: aiormq.Channel
         self._event_consumer_tag: str
         self._command_consumer_tag: str
+
+    def on_connection_closed(self, _closing: asyncio.Future) -> None:
+        if self._should_reconnect:
+            self.create_task(self.connect())
+        else:
+            self.stopped.set()
 
     async def on_message(self, message: types.DeliveredMessage) -> None:
 
@@ -235,27 +245,22 @@ class Service:
             else:
                 break
 
-    # Public API
-
-    def use_json(self) -> None:
-        """Force sending message serialized in plain JSON instead of CBOR."""
-        self._serialize = lambda message: json.dumps(message).encode("utf-8")
-        self._mime_type = "application/json"
-
-    def use_exclusive_queues(self) -> None:
-        """Force usage of exclusive queues.
-
-        This is useful for debug tools that should not leave a queue behind them (overflow ristk)
-        and not interfere between instances.
-        """
-        self.exclusive_queues = True
-
-    async def connect(self, loop: asyncio.AbstractEventLoop) -> None:
+    async def connect(self) -> None:
         """Connect to RabbitMQ, declare the topology and consumers."""
         # Perform connection
-        self._connection = connection = await aiormq.connect(self._url, loop=loop)
-        stopped = asyncio.Event(loop=loop)
-        self._connection.closing.add_done_callback(lambda closing: stopped.set())
+        connected = False
+        while not connected:
+            try:
+                connection = await aiormq.connect(self._url, loop=self.loop)
+            except ConnectionError as e:
+                if e.errno == 111:
+                    await asyncio.sleep(self.RETRY_DELAY)
+                else:
+                    self.stopped.set()
+            else:
+                connected = True
+        self._connection = connection
+        connection.closing.add_done_callback(self.on_connection_closed)
 
         # Creating channels
         self._channel = await connection.channel(publisher_confirms=True)
@@ -306,9 +311,28 @@ class Service:
             res = await self._channel.basic_consume(cmds_ok.queue, self.on_message)
             self._command_consumer_tag = res.consumer_tag
         await self.on_ready()
-        await stopped.wait()
+
+    # Public API
+
+    def use_json(self) -> None:
+        """Force sending message serialized in plain JSON instead of CBOR."""
+        self._serialize = lambda message: json.dumps(message).encode("utf-8")
+        self._mime_type = "application/json"
+
+    def use_exclusive_queues(self) -> None:
+        """Force usage of exclusive queues.
+
+        This is useful for debug tools that should not leave a queue behind them (overflow ristk)
+        and not interfere between instances.
+        """
+        self.exclusive_queues = True
+
+    async def run(self) -> None:
+        await self.connect()
+        await self.stopped.wait()
 
     async def stop(self) -> None:
+        self._should_reconnect = False
         await self._channel.basic_cancel(self._event_consumer_tag)
         await self._channel.basic_cancel(self._command_consumer_tag)
         # TOOD: wait for ongoing publishings?
