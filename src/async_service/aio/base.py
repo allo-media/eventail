@@ -286,7 +286,7 @@ class Service:
         # Declare, bind and consume queues
         if self._event_routing_keys:
             events_ok = await self._channel.queue_declare(
-                "" if self.exclusive_queues else (self.logical_service + "_events"),
+                "" if self.exclusive_queues else (self.logical_service + ".events"),
                 durable=not self.exclusive_queues,
                 exclusive=self.exclusive_queues,
             )
@@ -300,7 +300,7 @@ class Service:
 
         if self._command_routing_keys:
             cmds_ok = await self._channel.queue_declare(
-                "" if self.exclusive_queues else (self.logical_service + "_cmds"),
+                "" if self.exclusive_queues else (self.logical_service + ".cmds"),
                 durable=not self.exclusive_queues,
                 exclusive=self.exclusive_queues,
             )
