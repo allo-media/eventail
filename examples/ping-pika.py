@@ -14,7 +14,7 @@ MESSAGES = [
     "arrête de répéter ce que je dit !",
     "t'es lourd!",
     "stop that!",
-    "so childish…"
+    "so childish…",
 ]
 
 
@@ -39,14 +39,18 @@ class Ping(Service):
             self.log("error", "Unexpected message {} {}".format(key, status))
 
     def handle_returned_message(self, key, message, envelope):
-        self.log("critical", "unroutable {}.{}.{}".format(
-            key, message, envelope))
+        self.log("critical", "unroutable {}.{}.{}".format(key, message, envelope))
         raise ValueError(f"Wrong routing key {key}")
 
     def ping(self):
         message = {"message": choice(MESSAGES)}
         self.log("info", "Sending: {} {}".format(message, self._message_number))
-        self.send_command("pong.EchoMessage", message, self.return_key, "anyid" + str(self._message_number))
+        self.send_command(
+            "pong.EchoMessage",
+            message,
+            self.return_key,
+            "anyid" + str(self._message_number),
+        )
         self.call_later(1, self.ping)
 
     def healthcheck(self):
@@ -54,8 +58,9 @@ class Ping(Service):
         self.call_later(60, self.healthcheck)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import logging
+
     logger = logging.getLogger("async_service")
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
@@ -63,6 +68,6 @@ if __name__ == '__main__':
     service_name = sys.argv[1]
     url = sys.argv[2] if len(sys.argv) > 2 else "amqp://localhost"
     ping = ReconnectingSupervisor(Ping, url, service_name)
-    print('To exit press CTRL+C')
+    print("To exit press CTRL+C")
     ping.run()
     print("Bye!")

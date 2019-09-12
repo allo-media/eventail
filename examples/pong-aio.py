@@ -11,10 +11,12 @@ class EchoService(Service):
 
     async def handle_command(self, command, message, return_to, correlation_id):
         await self.log("debug", "Received {}".format(command))
-        if command.split(".")[-1] == 'EchoMessage':
+        if command.split(".")[-1] == "EchoMessage":
             await self.log("info", "Echoing {}".format(message))
             try:
-                await self.return_success(return_to, message, correlation_id, mandatory=True)
+                await self.return_success(
+                    return_to, message, correlation_id, mandatory=True
+                )
             except ValueError:
                 await self.log("Error", f"Unroutable {return_to}")
         else:
@@ -23,7 +25,8 @@ class EchoService(Service):
             await self.return_error(
                 return_to,
                 {"reason": "unknown command", "message": "unknown {}".format(command)},
-                correlation_id)
+                correlation_id,
+            )
 
     async def healthcheck(self) -> None:
         while True:
@@ -34,11 +37,11 @@ class EchoService(Service):
         self.create_task(self.healthcheck())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     uvloop.install()
     url = sys.argv[1] if len(sys.argv) > 1 else "amqp://localhost"
 
     loop = asyncio.get_event_loop()
     service = EchoService(url, [], ["pong.EchoMessage"], "pong", loop=loop)
-    print('To exit press CTRL+C')
+    print("To exit press CTRL+C")
     loop.run_until_complete(service.run())
