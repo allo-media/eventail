@@ -49,10 +49,12 @@
 <h2 id="_">_</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.__init__">__init__() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.__init__">__init__() (async_service.aio.Service method)</a>
 
       <ul>
-        <li><a href="api.html#async_service.supervisor.ReconnectingSupervisor.__init__">(async_service.supervisor.ReconnectingSupervisor method)</a>
+        <li><a href="api.html#async_service.pika.ReconnectingSupervisor.__init__">(async_service.pika.ReconnectingSupervisor method)</a>
+</li>
+        <li><a href="api.html#async_service.pika.Service.__init__">(async_service.pika.Service method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -61,7 +63,11 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.call_later">call_later() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.pika.Service.call_later">call_later() (async_service.pika.Service method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api.html#async_service.aio.Service.create_task">create_task() (async_service.aio.Service method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -69,15 +75,27 @@
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.handle_command">handle_command() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.handle_command">handle_command() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.handle_command">(async_service.pika.Service method)</a>
 </li>
-      <li><a href="api.html#async_service.base.Service.handle_event">handle_event() (async_service.base.Service method)</a>
+      </ul></li>
+      <li><a href="api.html#async_service.aio.Service.handle_event">handle_event() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.handle_event">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.handle_result">handle_result() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.handle_result">handle_result() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.handle_result">(async_service.pika.Service method)</a>
 </li>
-      <li><a href="api.html#async_service.base.Service.handle_returned_message">handle_returned_message() (async_service.base.Service method)</a>
+      </ul></li>
+      <li><a href="api.html#async_service.pika.Service.handle_returned_message">handle_returned_message() (async_service.pika.Service method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -85,42 +103,78 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.log">log() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.log">log() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.log">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="O">O</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.on_ready">on_ready() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.on_ready">on_ready() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.on_ready">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.publish_event">publish_event() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.PREFETCH_COUNT">PREFETCH_COUNT (async_service.aio.Service attribute)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.PREFETCH_COUNT">(async_service.pika.Service attribute)</a>
 </li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api.html#async_service.aio.Service.publish_event">publish_event() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.publish_event">(async_service.pika.Service method)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.supervisor.ReconnectingSupervisor">ReconnectingSupervisor (class in async_service.supervisor)</a>
+      <li><a href="api.html#async_service.pika.ReconnectingSupervisor">ReconnectingSupervisor (class in async_service.pika)</a>
 </li>
-      <li><a href="api.html#async_service.base.Service.return_error">return_error() (async_service.base.Service method)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.return_success">return_success() (async_service.base.Service method)</a>
-</li>
-      <li><a href="api.html#async_service.base.Service.run">run() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.RETRY_DELAY">RETRY_DELAY (async_service.aio.Service attribute)</a>
 
       <ul>
-        <li><a href="api.html#async_service.supervisor.ReconnectingSupervisor.run">(async_service.supervisor.ReconnectingSupervisor method)</a>
+        <li><a href="api.html#async_service.pika.Service.RETRY_DELAY">(async_service.pika.Service attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api.html#async_service.aio.Service.return_error">return_error() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.return_error">(async_service.pika.Service method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api.html#async_service.aio.Service.return_success">return_success() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.return_success">(async_service.pika.Service method)</a>
+</li>
+      </ul></li>
+      <li><a href="api.html#async_service.aio.Service.run">run() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.ReconnectingSupervisor.run">(async_service.pika.ReconnectingSupervisor method)</a>
+</li>
+        <li><a href="api.html#async_service.pika.Service.run">(async_service.pika.Service method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -129,26 +183,46 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.send_command">send_command() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.send_command">send_command() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.send_command">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
+      <li><a href="api.html#async_service.aio.Service">Service (class in async_service.aio)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service">(class in async_service.pika)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service">Service (class in async_service.base)</a>
+      <li><a href="api.html#async_service.aio.Service.stop">stop() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.stop">(async_service.pika.Service method)</a>
 </li>
-      <li><a href="api.html#async_service.base.Service.stop">stop() (async_service.base.Service method)</a>
-</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.use_exclusive_queues">use_exclusive_queues() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.use_exclusive_queues">use_exclusive_queues() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.use_exclusive_queues">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api.html#async_service.base.Service.use_json">use_json() (async_service.base.Service method)</a>
+      <li><a href="api.html#async_service.aio.Service.use_json">use_json() (async_service.aio.Service method)</a>
+
+      <ul>
+        <li><a href="api.html#async_service.pika.Service.use_json">(async_service.pika.Service method)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 

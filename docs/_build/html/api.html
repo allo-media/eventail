@@ -38,8 +38,8 @@
 <p>This module is for <em>callbacks</em> style of asynchronous application development.</p>
 <p>We depend on the <cite>pika</cite> library for lower level communication and event loop.</p>
 <dl class="class">
-<dt id="async_service.base.Service">
-<em class="property">class </em><code class="sig-prename descclassname">async_service.base.</code><code class="sig-name descname">Service</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.base.Service" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service">
+<em class="property">class </em><code class="sig-prename descclassname">async_service.pika.</code><code class="sig-name descname">Service</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.pika.Service" title="Permalink to this definition">¶</a></dt>
 <dd><p>This is an example service that will handle unexpected interactions
 with RabbitMQ such as channel and connection closures.</p>
 <p>If RabbitMQ closes the connection, this class will stop and indicate
@@ -51,9 +51,19 @@ commands that were issued and that should surface in the output as well.</p>
 <p>To leverage the binary nature of AMQP messages, we use CBOR instead of
 JSON as data serialization (transparent). Moreover, CBOR is much faster
 and much more compact than JSON.</p>
+<dl class="attribute">
+<dt id="async_service.pika.Service.PREFETCH_COUNT">
+<code class="sig-name descname">PREFETCH_COUNT</code><em class="property"> = 3</em><a class="headerlink" href="#async_service.pika.Service.PREFETCH_COUNT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="async_service.pika.Service.RETRY_DELAY">
+<code class="sig-name descname">RETRY_DELAY</code><em class="property"> = 15</em><a class="headerlink" href="#async_service.pika.Service.RETRY_DELAY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="method">
-<dt id="async_service.base.Service.__init__">
-<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.__init__" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new instance of the consumer class, passing in the AMQP
 URL used to connect to RabbitMQ.</p>
 <dl class="field-list simple">
@@ -64,14 +74,14 @@ URL used to connect to RabbitMQ.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.call_later">
-<code class="sig-name descname">call_later</code><span class="sig-paren">(</span><em class="sig-param">delay: int</em>, <em class="sig-param">callback: Callable</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.call_later" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.call_later">
+<code class="sig-name descname">call_later</code><span class="sig-paren">(</span><em class="sig-param">delay: int</em>, <em class="sig-param">callback: Callable</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.call_later" title="Permalink to this definition">¶</a></dt>
 <dd><p>Call <cite>callback</cite> after <cite>delay</cite> seconds.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.handle_command">
-<code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_command" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.handle_command">
+<code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_command" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handle incoming commands (to be implemented by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).
@@ -79,8 +89,8 @@ Expected errors should be returned with the <code class="docutils literal notran
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.handle_event">
-<code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_event" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.handle_event">
+<code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_event" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handle incoming event (to be implemented by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead
@@ -88,8 +98,8 @@ You should never do any filtering here: use the routing keys intead
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.handle_result">
-<code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.handle_result" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.handle_result">
+<code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_result" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handle incoming result (to be implemented by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
@@ -97,8 +107,8 @@ You should never do any filtering here: use the routing keys intead (see <code c
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.handle_returned_message">
-<code class="sig-name descname">handle_returned_message</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], envelope: Dict[str, str]</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.base.Service.handle_returned_message" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.handle_returned_message">
+<code class="sig-name descname">handle_returned_message</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], envelope: Dict[str, str]</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.pika.Service.handle_returned_message" title="Permalink to this definition">¶</a></dt>
 <dd><p>Invoked when a message is returned (to be implemented by subclasses).</p>
 <p>A message maybe returned if:
 * it was sent with the <cite>mandatory</cite> flag on True;
@@ -106,22 +116,22 @@ You should never do any filtering here: use the routing keys intead (see <code c
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.log">
-<code class="sig-name descname">log</code><span class="sig-paren">(</span><em class="sig-param">criticity: str</em>, <em class="sig-param">message: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.log" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.log">
+<code class="sig-name descname">log</code><span class="sig-paren">(</span><em class="sig-param">criticity: str</em>, <em class="sig-param">message: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.log" title="Permalink to this definition">¶</a></dt>
 <dd><p>Log to the log bus.</p>
 <p>Parameters are unicode strings.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.on_ready">
-<code class="sig-name descname">on_ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.on_ready" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.on_ready">
+<code class="sig-name descname">on_ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.on_ready" title="Permalink to this definition">¶</a></dt>
 <dd><p>Code to execute once the service comes online.</p>
 <p>(to be implemented by subclasses)</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.publish_event">
-<code class="sig-name descname">publish_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, message: Dict[str, Any], mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.publish_event" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.publish_event">
+<code class="sig-name descname">publish_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, message: Dict[str, Any], mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.publish_event" title="Permalink to this definition">¶</a></dt>
 <dd><p>Publish an event on the bus.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">event</span></code> is the name of the event,
 and the <cite>message</cite> is any data conforming to the JSON model.</p>
@@ -132,8 +142,8 @@ The default is False because some events maybe unused yet.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.return_error">
-<code class="sig-name descname">return_error</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.return_error" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.return_error">
+<code class="sig-name descname">return_error</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.return_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a failure result message.</p>
 <p>The <cite>message</cite> is any data conforming to the JSON model.
 If <cite>mandatory</cite> is True (default) and you have implemented
@@ -142,8 +152,8 @@ is unroutable.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.return_success">
-<code class="sig-name descname">return_success</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.return_success" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.return_success">
+<code class="sig-name descname">return_success</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.return_success" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a successful result message.</p>
 <p>The <cite>message</cite> is any data conforming to the JSON model.
 if <cite>mandatory</cite> is True (default) and you have implemented
@@ -152,15 +162,15 @@ is unroutable.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.run">
-<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.run" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.run" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the service by connecting to RabbitMQ and then
 starting the IOLoop to block and allow the SelectConnection to operate.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.send_command">
-<code class="sig-name descname">send_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, message: Dict[str, Any], reply_to: str, correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.send_command" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.send_command">
+<code class="sig-name descname">send_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, message: Dict[str, Any], reply_to: str, correlation_id: str, mandatory: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.send_command" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a command message.</p>
 <p>The <cite>message</cite> is any data conforming to the JSON model.
 if <cite>mandatory</cite> is True (default) and you have implemented
@@ -169,8 +179,8 @@ is unroutable.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.stop">
-<code class="sig-name descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.stop" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.stop">
+<code class="sig-name descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.stop" title="Permalink to this definition">¶</a></dt>
 <dd><p>Cleanly shutdown the connection to RabbitMQ by stopping the consumer
 with RabbitMQ. When RabbitMQ confirms the cancellation, on_cancelok
 will be invoked by pika, which will then closing the channel and
@@ -182,38 +192,185 @@ the IOLoop will be buffered but not processed.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.use_exclusive_queues">
-<code class="sig-name descname">use_exclusive_queues</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.use_exclusive_queues" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.use_exclusive_queues">
+<code class="sig-name descname">use_exclusive_queues</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.use_exclusive_queues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force usage of exclusive queues.</p>
 <p>This is useful for debug tools that should not leave a queue behind them (overflow risk)
 and not interfere between instances.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.base.Service.use_json">
-<code class="sig-name descname">use_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.base.Service.use_json" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.Service.use_json">
+<code class="sig-name descname">use_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.use_json" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force sending message serialized in plain JSON instead of CBOR.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="class">
-<dt id="async_service.supervisor.ReconnectingSupervisor">
-<em class="property">class </em><code class="sig-prename descclassname">async_service.supervisor.</code><code class="sig-name descname">ReconnectingSupervisor</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.base.Service], *args, **kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.ReconnectingSupervisor">
+<em class="property">class </em><code class="sig-prename descclassname">async_service.pika.</code><code class="sig-name descname">ReconnectingSupervisor</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.pika.base.Service], *args, **kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.pika.ReconnectingSupervisor" title="Permalink to this definition">¶</a></dt>
 <dd><p>This is an example supervisor that will reconnect if the nested
 Service indicates that a reconnect is necessary.</p>
 <dl class="method">
-<dt id="async_service.supervisor.ReconnectingSupervisor.__init__">
-<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.base.Service], *args, **kwargs</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor.__init__" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.ReconnectingSupervisor.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">service_factory: Callable[[...], async_service.pika.base.Service], *args, **kwargs</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.ReconnectingSupervisor.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Supervises a service and manages automatic reconnection.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">*args</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs**</span></code> are passed unchanged to the
 <code class="docutils literal notranslate"><span class="pre">service_factory</span></code>.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.supervisor.ReconnectingSupervisor.run">
-<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.supervisor.ReconnectingSupervisor.run" title="Permalink to this definition">¶</a></dt>
+<dt id="async_service.pika.ReconnectingSupervisor.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.ReconnectingSupervisor.run" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the service until the service chooses to exit without reconnecting.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="asyncio-compatible-api">
+<h2>Asyncio compatible API<a class="headerlink" href="#asyncio-compatible-api" title="Permalink to this headline">¶</a></h2>
+<p>Depends on the aiormq library:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">.</span><span class="p">[</span><span class="n">asyncio</span><span class="p">]</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="async_service.aio.Service">
+<em class="property">class </em><code class="sig-prename descclassname">async_service.aio.</code><code class="sig-name descname">Service</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str, loop: Optional[asyncio.events.AbstractEventLoop] = None</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.aio.Service" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="async_service.aio.Service.PREFETCH_COUNT">
+<code class="sig-name descname">PREFETCH_COUNT</code><em class="property"> = 3</em><a class="headerlink" href="#async_service.aio.Service.PREFETCH_COUNT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="async_service.aio.Service.RETRY_DELAY">
+<code class="sig-name descname">RETRY_DELAY</code><em class="property"> = 5</em><a class="headerlink" href="#async_service.aio.Service.RETRY_DELAY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str, loop: Optional[asyncio.events.AbstractEventLoop] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new instance of the consumer class, passing in the AMQP
+URL used to connect to RabbitMQ.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>amqp_url</strong> (<em>str</em>) – The AMQP url to connect with</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.create_task">
+<code class="sig-name descname">create_task</code><span class="sig-paren">(</span><em class="sig-param">coro: Coroutine</em><span class="sig-paren">)</span> &#x2192; Coroutine<a class="headerlink" href="#async_service.aio.Service.create_task" title="Permalink to this definition">¶</a></dt>
+<dd><p>Launch a task.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.handle_command">
+<em class="property">async </em><code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_command" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming commands (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).
+Expected errors should be returned with the <code class="docutils literal notranslate"><span class="pre">return_error</span></code> method.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.handle_event">
+<em class="property">async </em><code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming event (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead
+(see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.handle_result">
+<em class="property">async </em><code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming result (to be implemented by subclasses).</p>
+<p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
+You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">key</span></code> is the routing key and <code class="docutils literal notranslate"><span class="pre">status</span></code> is either “success” or “error”.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.log">
+<em class="property">async </em><code class="sig-name descname">log</code><span class="sig-paren">(</span><em class="sig-param">criticity: str</em>, <em class="sig-param">message: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log to the log bus.</p>
+<p>Parameters are unicode strings.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.on_ready">
+<em class="property">async </em><code class="sig-name descname">on_ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.on_ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute once the service comes online.</p>
+<p>(to be implemented by subclasses)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.publish_event">
+<em class="property">async </em><code class="sig-name descname">publish_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, message: Dict[str, Any], mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.publish_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Publish an event on the bus.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">event</span></code> is the name of the event,
+and the <cite>message</cite> is any data conforming to the JSON model.</p>
+<p>If <cite>mandatory</cite> is True and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.
+The default is False because some events maybe unused yet.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.return_error">
+<em class="property">async </em><code class="sig-name descname">return_error</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.return_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a failure notification.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+if <cite>mandatory</cite> is True and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.return_success">
+<em class="property">async </em><code class="sig-name descname">return_success</code><span class="sig-paren">(</span><em class="sig-param">destination: str, message: Dict[str, Any], correlation_id: str, mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.return_success" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a successful result message.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+if <cite>mandatory</cite> is True and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.run">
+<em class="property">async </em><code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.send_command">
+<em class="property">async </em><code class="sig-name descname">send_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, message: Dict[str, Any], reply_to: str, correlation_id: str, mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.send_command" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a command message.</p>
+<p>The <cite>message</cite> is any data conforming to the JSON model.
+if <cite>mandatory</cite> is True and you have implemented
+<cite>handle_returned_message</cite>, then it will be called if your message
+is unroutable.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.stop">
+<em class="property">async </em><code class="sig-name descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.use_exclusive_queues">
+<code class="sig-name descname">use_exclusive_queues</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.use_exclusive_queues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force usage of exclusive queues.</p>
+<p>This is useful for debug tools that should not leave a queue behind them (overflow ristk)
+and not interfere between instances.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="async_service.aio.Service.use_json">
+<code class="sig-name descname">use_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.use_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force sending message serialized in plain JSON instead of CBOR.</p>
 </dd></dl>
 
 </dd></dl>
@@ -242,6 +399,7 @@ Service indicates that a reconnect is necessary.</p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Documentation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#continuation-based-api">Continuation based API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#asyncio-compatible-api">Asyncio compatible API</a></li>
 </ul>
 </li>
 </ul>
