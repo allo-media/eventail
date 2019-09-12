@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='async_service',
-    version='0.6',
+    version='0.7',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -20,5 +20,8 @@ setup(
         'pika',
         'cbor'
     ],
-    python_requires='>=3.6',
+    extras_require={
+        'asyncio':  ["aiormq", "uvloop"],
+    },
+    python_requires='>=3.7',
 )
