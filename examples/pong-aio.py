@@ -25,13 +25,13 @@ class EchoService(Service):
                 {"reason": "unknown command", "message": "unknown {}".format(command)},
                 correlation_id)
 
-    async def heartbeat(self) -> None:
+    async def healthcheck(self) -> None:
         while True:
             await self.log("health", "I'm fine!")
             await asyncio.sleep(60)
 
     async def on_ready(self) -> None:
-        self.create_task(self.heartbeat())
+        self.create_task(self.healthcheck())
 
 
 if __name__ == '__main__':
