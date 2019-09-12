@@ -48,6 +48,8 @@ class Service:
         self._connection: aiormq.Connection
         self._channel: aiormq.Channel
         self._log_channel: aiormq.Channel
+        self._event_consumer_tag: str
+        self._command_consumer_tag: str
 
     async def on_message(self, message: types.DeliveredMessage) -> None:
 
@@ -248,10 +250,12 @@ class Service:
         """
         self.exclusive_queues = True
 
-    async def connect(self) -> None:
-        """Connect to RabbitMQ, declare the topology and subscribe to message."""
+    async def connect(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Connect to RabbitMQ, declare the topology and consumers."""
         # Perform connection
-        self._connection = connection = await aiormq.connect(self._url)
+        self._connection = connection = await aiormq.connect(self._url, loop=loop)
+        stopped = asyncio.Event(loop=loop)
+        self._connection.closing.add_done_callback(lambda closing: stopped.set())
 
         # Creating channels
         self._channel = await connection.channel(publisher_confirms=True)
@@ -286,7 +290,8 @@ class Service:
                     events_ok.queue, self.EVENT_EXCHANGE, routing_key=key
                 )
                 # returns ConsumeOK, which has consumer_tag attribute
-                await self._channel.basic_consume(events_ok.queue, self.on_message)
+                res = await self._channel.basic_consume(events_ok.queue, self.on_message)
+                self._event_consumer_tag = res.consumer_tag
 
         if self._command_routing_keys:
             cmds_ok = await self._channel.queue_declare(
@@ -298,8 +303,18 @@ class Service:
                 await self._channel.queue_bind(
                     cmds_ok.queue, self.CMD_EXCHANGE, routing_key=key
                 )
-            await self._channel.basic_consume(cmds_ok.queue, self.on_message)
+            res = await self._channel.basic_consume(cmds_ok.queue, self.on_message)
+            self._command_consumer_tag = res.consumer_tag
         await self.on_ready()
+        await stopped.wait()
+
+    async def stop(self) -> None:
+        await self._channel.basic_cancel(self._event_consumer_tag)
+        await self._channel.basic_cancel(self._command_consumer_tag)
+        # TOOD: wait for ongoing publishings?
+        await self._channel.close()
+        await self._log_channel.close()
+        await self._connection.close()
 
     async def log(self, criticity: str, message: str) -> None:
         """Log to the log bus.
