@@ -44,4 +44,4 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     service = EchoService(url, [], ["pong.EchoMessage"], "pong", loop=loop)
     print("To exit press CTRL+C")
-    loop.run_until_complete(service.run())
+    loop.run_until_complete(service.run())  # auto reconnect in built-in
