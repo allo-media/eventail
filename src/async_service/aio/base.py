@@ -241,7 +241,7 @@ class Service:
                 if e.message is not None:
                     raise ValueError(f"{routing_key} is unroutable")
                 # retry later
-                await asyncio.sleep(self.RETRY_DELAY)
+                await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
             else:
                 break
 
@@ -254,7 +254,7 @@ class Service:
                 connection = await aiormq.connect(self._url, loop=self.loop)
             except ConnectionError as e:
                 if e.errno == 111:
-                    await asyncio.sleep(self.RETRY_DELAY)
+                    await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
                 else:
                     self.stopped.set()
             else:
@@ -335,7 +335,8 @@ class Service:
         self._should_reconnect = False
         await self._channel.basic_cancel(self._event_consumer_tag)
         await self._channel.basic_cancel(self._command_consumer_tag)
-        # TOOD: wait for ongoing publishings?
+        # wait for ongoing publishings?
+        await asyncio.sleep(self.RETRY_DELAY + 1, loop=self.loop)
         await self._channel.close()
         await self._log_channel.close()
         await self._connection.close()
