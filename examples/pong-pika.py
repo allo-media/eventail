@@ -25,6 +25,13 @@ class EchoService(Service):
         self.log("error", "unroutable {}.{}.{}".format(
             key, message, envelope))
 
+    def on_ready(self):
+        self.healthcheck()
+
+    def healthcheck(self):
+        self.log("health", "I'm fine!")
+        self.call_later(60, self.healthcheck)
+
 
 if __name__ == '__main__':
     # import logging

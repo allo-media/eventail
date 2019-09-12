@@ -27,6 +27,7 @@ class Ping(Service):
         super().__init__(host, [], [self.return_key], logical_service)
 
     def on_ready(self):
+        self.healthcheck()
         self.ping()
 
     def handle_result(self, key, message, status, correlation_id):
@@ -47,6 +48,10 @@ class Ping(Service):
         self.log("info", "Sending: {} {}".format(message, self._message_number))
         self.send_command("pong.EchoMessage", message, self.return_key, "anyid" + str(self._message_number))
         self.call_later(1, self.ping)
+
+    def healthcheck(self):
+        self.log("health", "I'm fine!")
+        self.call_later(60, self.healthcheck)
 
 
 if __name__ == '__main__':
