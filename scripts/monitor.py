@@ -3,7 +3,7 @@ from typing import Any, Dict
 import argparse
 import pprint
 
-from async_service import Service
+from async_service.pika import Service
 
 
 JSON_MODEL = Dict[str, Any]
@@ -22,11 +22,11 @@ class Monitor(Service):
         print()
 
     def handle_command(
-        self, command: str, payload: JSON_MODEL, return_to: str, correlation_id: str
+        self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
     ) -> None:
         print("Got a Command", command)
         print("Correlation ID", correlation_id)
-        print("Return to", return_to)
+        print("Return to", reply_to)
         print("Payload:")
         pprint.pprint(payload)
         print("---------")

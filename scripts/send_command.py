@@ -7,7 +7,7 @@ import os.path
 
 import cbor
 
-from async_service import Service
+from async_service.pika import Service
 
 
 JSON_MODEL = Dict[str, Any]
