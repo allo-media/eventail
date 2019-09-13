@@ -37,15 +37,7 @@ class Ping(Service):
             # should never happen: means we misconfigured the routing keys
             await self.log("error", f"Unexpected message {key} {status}")
 
-    async def handle_event(self, event, payload):
-        handler = getattr(self, event)
-        if handler is not None:
-            await handler(payload)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            await self.log("error", "unexpected message {}".format(event))
-
-    async def ShutdownStarted(self, payload):
+    async def on_ShutdownStarted(self, payload):
         await self.log("info", "Received signal for shutdown.")
         await self.stop()
 
