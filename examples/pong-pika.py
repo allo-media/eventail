@@ -24,9 +24,22 @@ class EchoService(Service):
                 correlation_id,
             )
 
+    def handle_event(self, routing_key, payload):
+        # auto-delegation pattern
+        handler = getattr(self, routing_key)
+        if handler is not None:
+            handler(payload)
+        else:
+            # should never happens: means we misconfigured the routing keys
+            self.log("error", "unexpected message {}".format(routing_key))
+
     def EchoMessage(self, message, reply_to, correlation_id):
         self.log("info", "Echoing {}".format(message))
         self.return_success(reply_to, message, correlation_id)
+
+    def ShutdownStarted(self, payload):
+        self.log("info", "Received signal for shutdown.")
+        self.stop()
 
     def handle_returned_message(self, key, message, envelope):
         self.log("error", "unroutable {}.{}.{}".format(key, message, envelope))
@@ -45,7 +58,9 @@ if __name__ == "__main__":
     # logger.addHandler(logging.StreamHandler())
     # logger.setLevel(logging.DEBUG)
     url = sys.argv[1] if len(sys.argv) > 1 else "amqp://localhost"
-    echo = ReconnectingSupervisor(EchoService, url, [], ["pong.EchoMessage"], "pong")
+    echo = ReconnectingSupervisor(
+        EchoService, url, ["ShutdownStarted"], ["pong.EchoMessage"], "pong"
+    )
     print("To exit press CTRL+C")
     echo.run()
     print("Bye!")

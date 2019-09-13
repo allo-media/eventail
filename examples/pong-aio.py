@@ -25,14 +25,24 @@ class EchoService(Service):
                 correlation_id,
             )
 
+    async def handle_event(self, event, payload):
+        handler = getattr(self, event)
+        if handler is not None:
+            await handler(payload)
+        else:
+            # should never happens: means we misconfigured the routing keys
+            await self.log("error", "unexpected message {}".format(event))
+
     async def EchoMessage(self, message, reply_to, correlation_id):
         await self.log("info", "Echoing {}".format(message))
         try:
-            await self.return_success(
-                reply_to, message, correlation_id, mandatory=True
-            )
+            await self.return_success(reply_to, message, correlation_id, mandatory=True)
         except ValueError:
             await self.log("Error", f"Unroutable {reply_to}")
+
+    async def ShutdownStarted(self, payload):
+        await self.log("info", "Received signal for shutdown.")
+        await self.stop()
 
     async def healthcheck(self) -> None:
         while True:
@@ -48,6 +58,8 @@ if __name__ == "__main__":
     url = sys.argv[1] if len(sys.argv) > 1 else "amqp://localhost"
 
     loop = asyncio.get_event_loop()
-    service = EchoService(url, [], ["pong.EchoMessage"], "pong", loop=loop)
+    service = EchoService(
+        url, ["ShutdownStarted"], ["pong.EchoMessage"], "pong", loop=loop
+    )
     print("To exit press CTRL+C")
     loop.run_until_complete(service.run())  # auto reconnect in built-in
