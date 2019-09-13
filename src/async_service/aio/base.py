@@ -344,7 +344,7 @@ class Service:
         await self._channel.basic_cancel(self._event_consumer_tag)
         await self._channel.basic_cancel(self._command_consumer_tag)
         # wait for ongoing publishings?
-        await asyncio.sleep(self.RETRY_DELAY + 1, loop=self.loop)
+        await asyncio.sleep(5, loop=self.loop)
         await self._channel.close()
         await self._log_channel.close()
         await self._connection.close()
