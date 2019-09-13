@@ -171,7 +171,7 @@ class Service:
                 ch.basic_nack(delivery.delivery_tag, requeue=True)
             else:
                 # dead letter
-                self.log("error", "Giving up on {}: {}".format(routing_key, e))
+                await self.log("error", "Giving up on {}: {}".format(routing_key, e))
                 ch.basic_nack(delivery.delivery_tag, requeue=False)
         else:
             await ch.basic_ack(delivery.delivery_tag)
@@ -197,7 +197,7 @@ class Service:
                 ch.basic_nack(delivery.delivery_tag, requeue=True)
             else:
                 # dead letter
-                self.log("error", "Giving up on {}: {}".format(routing_key, e))
+                await self.log("error", "Giving up on {}: {}".format(routing_key, e))
                 ch.basic_nack(delivery.delivery_tag, requeue=False)
         else:
             await ch.basic_ack(delivery.delivery_tag)
