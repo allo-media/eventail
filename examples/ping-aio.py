@@ -25,7 +25,9 @@ class Ping(Service):
 
     def __init__(self, url, logical_service, loop=None):
         self.return_key = logical_service + ".EchoMessage"
-        super().__init__(url, [], [self.return_key], logical_service, loop=loop)
+        super().__init__(
+            url, ["ShutdownStarted"], [self.return_key], logical_service, loop=loop
+        )
 
     async def handle_result(self, key, message, status, correlation_id):
         await self.log("debug", f"Received {key} {status}")
@@ -34,6 +36,18 @@ class Ping(Service):
         else:
             # should never happen: means we misconfigured the routing keys
             await self.log("error", f"Unexpected message {key} {status}")
+
+    async def handle_event(self, event, payload):
+        handler = getattr(self, event)
+        if handler is not None:
+            await handler(payload)
+        else:
+            # should never happens: means we misconfigured the routing keys
+            await self.log("error", "unexpected message {}".format(event))
+
+    async def ShutdownStarted(self, payload):
+        await self.log("info", "Received signal for shutdown.")
+        await self.stop()
 
     async def ping(self):
         i = 1
