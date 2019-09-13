@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import signal
 from typing import Any, Callable, Coroutine, Dict, Optional, Sequence
 
 import aiormq
@@ -43,7 +44,7 @@ class Service:
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
-        self.loop = loop
+        self.loop: asyncio.AbstractEventLoop = loop if loop is not None else asyncio.get_running_loop()
         self.exclusive_queues = False
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"
@@ -54,6 +55,9 @@ class Service:
         self._log_channel: aiormq.Channel
         self._event_consumer_tag: str
         self._command_consumer_tag: str
+
+        for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
+            self.loop.add_signal_handler(s, lambda: self.create_task(self.stop()))
 
     def on_connection_closed(self, closing: asyncio.Future) -> None:
         if self._should_reconnect:
@@ -340,11 +344,20 @@ class Service:
         await self.stopped.wait()
 
     async def stop(self) -> None:
+        """Cleanly stop the application.
+
+        This method is automatically triggered if we receive one of
+        these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.
+        """
+        print("Shutting down in 3 seconds.")
         self._should_reconnect = False
+        if self._connection.is_closed:
+            return
+        await self.log("warning", "Shutting down…")
         await self._channel.basic_cancel(self._event_consumer_tag)
         await self._channel.basic_cancel(self._command_consumer_tag)
         # wait for ongoing publishings?
-        await asyncio.sleep(5, loop=self.loop)
+        await asyncio.sleep(3, loop=self.loop)
         await self._channel.close()
         await self._log_channel.close()
         await self._connection.close()

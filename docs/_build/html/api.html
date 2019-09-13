@@ -51,16 +51,6 @@ commands that were issued and that should surface in the output as well.</p>
 <p>To leverage the binary nature of AMQP messages, we use CBOR instead of
 JSON as data serialization (transparent). Moreover, CBOR is much faster
 and much more compact than JSON.</p>
-<dl class="attribute">
-<dt id="async_service.pika.Service.PREFETCH_COUNT">
-<code class="sig-name descname">PREFETCH_COUNT</code><em class="property"> = 3</em><a class="headerlink" href="#async_service.pika.Service.PREFETCH_COUNT" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="async_service.pika.Service.RETRY_DELAY">
-<code class="sig-name descname">RETRY_DELAY</code><em class="property"> = 15</em><a class="headerlink" href="#async_service.pika.Service.RETRY_DELAY" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 <dl class="method">
 <dt id="async_service.pika.Service.__init__">
 <code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.__init__" title="Permalink to this definition">¶</a></dt>
@@ -189,6 +179,8 @@ when CTRL-C is pressed raising a KeyboardInterrupt exception. This
 exception stops the IOLoop which needs to be running for pika to
 communicate with RabbitMQ. All of the commands issued prior to starting
 the IOLoop will be buffered but not processed.</p>
+<p>This method is automatically triggered if we receive one of
+these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.</p>
 </dd></dl>
 
 <dl class="method">
@@ -238,17 +230,7 @@ Service indicates that a reconnect is necessary.</p>
 <dl class="class">
 <dt id="async_service.aio.Service">
 <em class="property">class </em><code class="sig-prename descclassname">async_service.aio.</code><code class="sig-name descname">Service</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str, loop: Optional[asyncio.events.AbstractEventLoop] = None</em><span class="sig-paren">)</span><a class="headerlink" href="#async_service.aio.Service" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="attribute">
-<dt id="async_service.aio.Service.PREFETCH_COUNT">
-<code class="sig-name descname">PREFETCH_COUNT</code><em class="property"> = 3</em><a class="headerlink" href="#async_service.aio.Service.PREFETCH_COUNT" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="async_service.aio.Service.RETRY_DELAY">
-<code class="sig-name descname">RETRY_DELAY</code><em class="property"> = 5</em><a class="headerlink" href="#async_service.aio.Service.RETRY_DELAY" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
+<dd><dl class="method">
 <dt id="async_service.aio.Service.__init__">
 <code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">amqp_url: str, event_routing_keys: Sequence[str], command_routing_keys: Sequence[str], logical_service: str, loop: Optional[asyncio.events.AbstractEventLoop] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new instance of the consumer class, passing in the AMQP
@@ -340,11 +322,6 @@ is unroutable.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="async_service.aio.Service.run">
-<em class="property">async </em><code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.run" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
 <dt id="async_service.aio.Service.send_command">
 <em class="property">async </em><code class="sig-name descname">send_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, message: Dict[str, Any], reply_to: str, correlation_id: str, mandatory: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.send_command" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a command message.</p>
@@ -357,7 +334,10 @@ is unroutable.</p>
 <dl class="method">
 <dt id="async_service.aio.Service.stop">
 <em class="property">async </em><code class="sig-name descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.stop" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Cleanly stop the application.</p>
+<p>This method is automatically triggered if we receive one of
+these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="async_service.aio.Service.use_exclusive_queues">

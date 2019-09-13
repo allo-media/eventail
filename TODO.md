@@ -1,6 +1,5 @@
 LIB
 
- * Graceful shutdown on signals (SIGNIT, SIGTERM…)
  * Integrate other aio libs HOWTO
 
 FOR PRODUCTION QUALITY:
