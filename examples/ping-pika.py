@@ -38,16 +38,7 @@ class Ping(Service):
             # should never happen: means we misconfigured the routing keys
             self.log("error", "Unexpected message {} {}".format(key, status))
 
-    def handle_event(self, routing_key, payload):
-        # auto-delegation pattern
-        handler = getattr(self, routing_key)
-        if handler is not None:
-            handler(payload)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            self.log("error", "unexpected message {}".format(routing_key))
-
-    def ShutdownStarted(self, payload):
+    def on_ShutdownStarted(self, payload):
         self.log("info", "Received signal for shutdown.")
         self.stop()
 
