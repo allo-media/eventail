@@ -10,6 +10,7 @@ import functools
 import json
 import logging
 import os
+import signal
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import cbor
@@ -78,6 +79,10 @@ class Service(object):
         self._connection: pika.SelectConnection
         self._channel: pika.channel.Channel
         self._log_channel: pika.channel.Channel
+
+        signal.signal(signal.SIGINT, lambda _s, _f: self.stop())
+        signal.signal(signal.SIGHUP, lambda _s, _f: self.stop())
+        signal.signal(signal.SIGTERM, lambda _s, _f: self.stop())
 
     def reset_connection_state(self) -> None:
         self._bind_count = (len(self._event_routing_keys) or 1) + (
@@ -895,8 +900,11 @@ class Service(object):
         communicate with RabbitMQ. All of the commands issued prior to starting
         the IOLoop will be buffered but not processed.
 
+        This method is automatically triggered if we receive one of
+        these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.
         """
         if not self._closing:
+            self.log("warning", "Shutting down…")
             self._closing = True
             LOGGER.info("Stopping")
             if self._consuming:
