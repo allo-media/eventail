@@ -72,28 +72,36 @@ URL used to connect to RabbitMQ.</p>
 <dl class="method">
 <dt id="async_service.pika.Service.handle_command">
 <code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_command" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming commands (to be implemented by subclasses).</p>
+<dd><p>Handle incoming commands (may be overwriten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).
 Expected errors should be returned with the <code class="docutils literal notranslate"><span class="pre">return_error</span></code> method.</p>
+<p>The default implementation dispatches the messages by calling methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_COMMAND(payload,</span> <span class="pre">reply_to,</span> <span class="pre">correlation_id)</span></code> where COMMAND is what is left
+after stripping the <code class="docutils literal notranslate"><span class="pre">service.</span></code> prefix from the routing key.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="async_service.pika.Service.handle_event">
 <code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_event" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming event (to be implemented by subclasses).</p>
+<dd><p>Handle incoming event (may be overwritten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead
 (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+<p>The default implementation dispatches the messages by calling methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_KEY(payload)</span></code> where key is the routing key.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="async_service.pika.Service.handle_result">
 <code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.pika.Service.handle_result" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming result (to be implemented by subclasses).</p>
+<dd><p>Handle incoming result (may be overwritten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">key</span></code> is the routing key and <code class="docutils literal notranslate"><span class="pre">status</span></code> is either “success” or “error”.</p>
+<p>The default implementation dispatches the messages by calling methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_KEY(payload,</span> <span class="pre">status,</span> <span class="pre">correlation_id)</span></code> where KEY is what is left
+after stripping the <code class="docutils literal notranslate"><span class="pre">service.</span></code> prefix from the routing key.</p>
 </dd></dl>
 
 <dl class="method">
@@ -251,28 +259,36 @@ URL used to connect to RabbitMQ.</p>
 <dl class="method">
 <dt id="async_service.aio.Service.handle_command">
 <em class="property">async </em><code class="sig-name descname">handle_command</code><span class="sig-paren">(</span><em class="sig-param">command: str, payload: Dict[str, Any], reply_to: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_command" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming commands (to be implemented by subclasses).</p>
+<dd><p>Handle incoming commands (may be overwriten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).
 Expected errors should be returned with the <code class="docutils literal notranslate"><span class="pre">return_error</span></code> method.</p>
+<p>The default implementation dispatches the messages by calling coroutine methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_COMMAND(payload,</span> <span class="pre">reply_to,</span> <span class="pre">correlation_id)</span></code> where COMMAND is what is left
+after stripping the <code class="docutils literal notranslate"><span class="pre">service.</span></code> prefix from the routing key.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="async_service.aio.Service.handle_event">
 <em class="property">async </em><code class="sig-name descname">handle_event</code><span class="sig-paren">(</span><em class="sig-param">event: str, payload: Dict[str, Any]</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_event" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming event (to be implemented by subclasses).</p>
+<dd><p>Handle incoming event (may be overwritten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead
 (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
+<p>The default implementation dispatches the messages by calling coroutine methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_KEY(payload)</span></code> where key is the routing key.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="async_service.aio.Service.handle_result">
 <em class="property">async </em><code class="sig-name descname">handle_result</code><span class="sig-paren">(</span><em class="sig-param">key: str, payload: Dict[str, Any], status: str, correlation_id: str</em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#async_service.aio.Service.handle_result" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle incoming result (to be implemented by subclasses).</p>
+<dd><p>Handle incoming result (may be overwritten by subclasses).</p>
 <p>The <cite>payload</cite> is already decoded and is a python data structure compatible with the JSON data model.
 You should never do any filtering here: use the routing keys intead (see <code class="docutils literal notranslate"><span class="pre">__init__()</span></code>).</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">key</span></code> is the routing key and <code class="docutils literal notranslate"><span class="pre">status</span></code> is either “success” or “error”.</p>
+<p>The default implementation dispatches the messages by calling coroutine methods in the form
+<code class="docutils literal notranslate"><span class="pre">self.on_KEY(payload,</span> <span class="pre">status,</span> <span class="pre">correlation_id)</span></code> where KEY is what is left
+after stripping the <code class="docutils literal notranslate"><span class="pre">service.</span></code> prefix from the routing key.</p>
 </dd></dl>
 
 <dl class="method">
