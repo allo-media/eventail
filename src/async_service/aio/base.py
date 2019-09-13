@@ -44,7 +44,7 @@ class Service:
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
-        self.loop = loop
+        self.loop: asyncio.AbstractEventLoop = loop if loop is not None else asyncio.get_running_loop()
         self.exclusive_queues = False
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"
@@ -57,7 +57,7 @@ class Service:
         self._command_consumer_tag: str
 
         for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(s, lambda: self.create_task(self.stop()))
+            self.loop.add_signal_handler(s, lambda: self.create_task(self.stop()))
 
     def on_connection_closed(self, closing: asyncio.Future) -> None:
         if self._should_reconnect:
