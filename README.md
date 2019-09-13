@@ -31,7 +31,7 @@ rabbitmqctl set_policy DLX ".*\.events" '{"dead-letter-exchange":"am-dlx"}' --ap
 ```
 
 ```
-rabbitmqctl set_policy DLX ".*\.cmds" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
+rabbitmqctl set_policy DLX ".*\.commands" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
 ```
 
 Note that a policy applies to existing **and future** queues as well, so you don't have to reissue those commands each time a new service appears!

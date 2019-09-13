@@ -71,7 +71,7 @@ class Service(object):
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
         self._event_queue = logical_service + ".events"
-        self._command_queue = logical_service + ".cmds"
+        self._command_queue = logical_service + ".commands"
         self.exclusive_queues = False
         self._delayed_callbacks: List[Callable] = []
         self._serialize: Callable[..., bytes] = cbor.dumps
