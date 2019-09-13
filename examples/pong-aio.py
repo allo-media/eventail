@@ -8,25 +8,31 @@ from async_service.aio import Service
 class EchoService(Service):
 
     PREFETCH_COUNT = 10
+    RETRY_DELAY = 2
 
-    async def handle_command(self, command, message, return_to, correlation_id):
+    async def handle_command(self, command, message, reply_to, correlation_id):
         await self.log("debug", "Received {}".format(command))
-        if command.split(".")[-1] == "EchoMessage":
-            await self.log("info", "Echoing {}".format(message))
-            try:
-                await self.return_success(
-                    return_to, message, correlation_id, mandatory=True
-                )
-            except ValueError:
-                await self.log("Error", f"Unroutable {return_to}")
+        # auto-delegation pattern
+        handler = getattr(self, command.split(".")[-1])
+        if handler is not None:
+            await handler(message, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log("error", "unexpected message {}".format(command))
             await self.return_error(
-                return_to,
+                reply_to,
                 {"reason": "unknown command", "message": "unknown {}".format(command)},
                 correlation_id,
             )
+
+    async def EchoMessage(self, message, reply_to, correlation_id):
+        await self.log("info", "Echoing {}".format(message))
+        try:
+            await self.return_success(
+                reply_to, message, correlation_id, mandatory=True
+            )
+        except ValueError:
+            await self.log("Error", f"Unroutable {reply_to}")
 
     async def healthcheck(self) -> None:
         while True:

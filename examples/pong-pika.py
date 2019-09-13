@@ -7,20 +7,26 @@ from async_service.pika import Service, ReconnectingSupervisor
 class EchoService(Service):
 
     PREFETCH_COUNT = 10
+    RETRY_DELAY = 2
 
-    def handle_command(self, command, message, return_to, correlation_id):
+    def handle_command(self, command, message, reply_to, correlation_id):
         self.log("debug", "Received {}".format(command))
-        if command.split(".")[-1] == "EchoMessage":
-            self.log("info", "Echoing {}".format(message))
-            self.return_success(return_to, message, correlation_id)
+        # auto-delegation pattern
+        handler = getattr(self, command.split(".")[-1])
+        if handler is not None:
+            handler(message, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log("error", "unexpected message {}".format(command))
             self.return_error(
-                return_to,
+                reply_to,
                 {"reason": "unknown command", "message": "unknown {}".format(command)},
                 correlation_id,
             )
+
+    def EchoMessage(self, message, reply_to, correlation_id):
+        self.log("info", "Echoing {}".format(message))
+        self.return_success(reply_to, message, correlation_id)
 
     def handle_returned_message(self, key, message, envelope):
         self.log("error", "unroutable {}.{}.{}".format(key, message, envelope))
