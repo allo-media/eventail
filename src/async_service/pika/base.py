@@ -80,9 +80,8 @@ class Service(object):
         self._channel: pika.channel.Channel
         self._log_channel: pika.channel.Channel
 
-        signal.signal(signal.SIGINT, lambda _s, _f: self.stop())
-        signal.signal(signal.SIGHUP, lambda _s, _f: self.stop())
-        signal.signal(signal.SIGTERM, lambda _s, _f: self.stop())
+        for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
+            signal.signal(s, lambda _s, _f: self.stop())
 
     def reset_connection_state(self) -> None:
         self._bind_count = (len(self._event_routing_keys) or 1) + (
