@@ -493,7 +493,9 @@ class Service:
         if handler is not None:
             await handler(payload)
         else:
-            await self.log("error", f"unexpected event {event}; check your subscriptions!")
+            await self.log(
+                "error", f"unexpected event {event}; check your subscriptions!"
+            )
 
     async def handle_command(
         self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
@@ -514,7 +516,9 @@ class Service:
             await handler(payload, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            await self.log("error", f"unexpected command {command}; check your subscriptions!")
+            await self.log(
+                "error", f"unexpected command {command}; check your subscriptions!"
+            )
 
     async def handle_result(
         self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
@@ -535,5 +539,6 @@ class Service:
             await handler(payload, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            await self.log("error", f"unexpected result {key}; check your subscriptions!")
-
+            await self.log(
+                "error", f"unexpected result {key}; check your subscriptions!"
+            )

@@ -954,7 +954,9 @@ class Service(object):
             handler(payload, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            self.log("error", f"unexpected command {command}; check your subscriptions!")
+            self.log(
+                "error", f"unexpected command {command}; check your subscriptions!"
+            )
 
     def handle_result(
         self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
