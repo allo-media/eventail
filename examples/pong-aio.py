@@ -10,37 +10,14 @@ class EchoService(Service):
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
 
-    async def handle_command(self, command, message, reply_to, correlation_id):
-        await self.log("debug", "Received {}".format(command))
-        # auto-delegation pattern
-        handler = getattr(self, command.split(".")[-1])
-        if handler is not None:
-            await handler(message, reply_to, correlation_id)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            await self.log("error", "unexpected message {}".format(command))
-            await self.return_error(
-                reply_to,
-                {"reason": "unknown command", "message": "unknown {}".format(command)},
-                correlation_id,
-            )
-
-    async def handle_event(self, event, payload):
-        handler = getattr(self, event)
-        if handler is not None:
-            await handler(payload)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            await self.log("error", "unexpected message {}".format(event))
-
-    async def EchoMessage(self, message, reply_to, correlation_id):
+    async def on_EchoMessage(self, message, reply_to, correlation_id):
         await self.log("info", "Echoing {}".format(message))
         try:
             await self.return_success(reply_to, message, correlation_id, mandatory=True)
         except ValueError:
             await self.log("Error", f"Unroutable {reply_to}")
 
-    async def ShutdownStarted(self, payload):
+    async def on_ShutdownStarted(self, payload):
         await self.log("info", "Received signal for shutdown.")
         await self.stop()
 

@@ -9,35 +9,11 @@ class EchoService(Service):
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
 
-    def handle_command(self, command, message, reply_to, correlation_id):
-        self.log("debug", "Received {}".format(command))
-        # auto-delegation pattern
-        handler = getattr(self, command.split(".")[-1])
-        if handler is not None:
-            handler(message, reply_to, correlation_id)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            self.log("error", "unexpected message {}".format(command))
-            self.return_error(
-                reply_to,
-                {"reason": "unknown command", "message": "unknown {}".format(command)},
-                correlation_id,
-            )
-
-    def handle_event(self, routing_key, payload):
-        # auto-delegation pattern
-        handler = getattr(self, routing_key)
-        if handler is not None:
-            handler(payload)
-        else:
-            # should never happens: means we misconfigured the routing keys
-            self.log("error", "unexpected message {}".format(routing_key))
-
-    def EchoMessage(self, message, reply_to, correlation_id):
+    def on_EchoMessage(self, message, reply_to, correlation_id):
         self.log("info", "Echoing {}".format(message))
         self.return_success(reply_to, message, correlation_id)
 
-    def ShutdownStarted(self, payload):
+    def on_ShutdownStarted(self, payload):
         self.log("info", "Received signal for shutdown.")
         self.stop()
 

@@ -920,37 +920,64 @@ class Service(object):
     # Abstract methods
 
     def handle_event(self, event: str, payload: JSON_MODEL) -> None:
-        """Handle incoming event (to be implemented by subclasses).
+        """Handle incoming event (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
         You should never do any filtering here: use the routing keys intead
         (see ``__init__()``).
+
+        The default implementation dispatches the messages by calling methods in the form
+        ``self.on_KEY(payload)`` where key is the routing key.
         """
-        return NotImplemented
+        handler = getattr(self, "on_" + event)
+        if handler is not None:
+            handler(payload)
+        else:
+            self.log("error", f"unexpected event {event}; check your subscriptions!")
 
     def handle_command(
         self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
     ) -> None:
-        """Handle incoming commands (to be implemented by subclasses).
+        """Handle incoming commands (may be overwriten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
         You should never do any filtering here: use the routing keys intead (see ``__init__()``).
         Expected errors should be returned with the ``return_error`` method.
+
+        The default implementation dispatches the messages by calling methods in the form
+        ``self.on_COMMAND(payload, reply_to, correlation_id)`` where COMMAND is what is left
+        after stripping the ``service.`` prefix from the routing key.
+
         """
-        return NotImplemented
+        handler = getattr(self, "on_" + command.split(".")[-1])
+        if handler is not None:
+            handler(payload, reply_to, correlation_id)
+        else:
+            # should never happens: means we misconfigured the routing keys
+            self.log(
+                "error", f"unexpected command {command}; check your subscriptions!"
+            )
 
     def handle_result(
         self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
     ) -> None:
-        """Handle incoming result (to be implemented by subclasses).
+        """Handle incoming result (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
         You should never do any filtering here: use the routing keys intead (see ``__init__()``).
 
         The ``key`` is the routing key and ``status`` is either "success" or "error".
 
+        The default implementation dispatches the messages by calling methods in the form
+        ``self.on_KEY(payload, status, correlation_id)`` where KEY is what is left
+        after stripping the ``service.`` prefix from the routing key.
         """
-        return NotImplemented
+        handler = getattr(self, "on_" + key.split(".")[-1])
+        if handler is not None:
+            handler(payload, status, correlation_id)
+        else:
+            # should never happens: means we misconfigured the routing keys
+            self.log("error", f"unexpected result {key}; check your subscriptions!")
 
     def handle_returned_message(
         self, key: str, payload: JSON_MODEL, envelope: Dict[str, str]
