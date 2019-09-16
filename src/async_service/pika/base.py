@@ -902,8 +902,10 @@ class Service(object):
         This method is automatically triggered if we receive one of
         these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.
         """
+        self.should_reconnect = False
         if not self._closing:
-            self.log("warning", "Shutting down…")
+            if not self._connection.is_closed:
+                self.log("warning", "Shutting down…")
             self._closing = True
             LOGGER.info("Stopping")
             if self._consuming:
