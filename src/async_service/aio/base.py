@@ -243,7 +243,7 @@ class Service:
                 # message was not delivered
                 # if it is returned as unroutable, raise a ValueError
                 if e.message is not None:
-                    raise ValueError(f"{routing_key} is unroutable")
+                    raise ValueError(404, f"{routing_key} is unroutable")
                 # retry later
                 await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
             except RuntimeError as e:
