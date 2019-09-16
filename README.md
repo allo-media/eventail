@@ -27,11 +27,7 @@ This package also provide some debugging command line tools :
 The base code  does not create the dead-letters exchange (DLX) for you, nor the dead-letter queues. It's good practice to do it once and configure the queues with a policy :
 
 ```
-rabbitmqctl set_policy DLX ".*\.events" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
-```
-
-```
-rabbitmqctl set_policy DLX ".*\.commands" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
+rabbitmqctl set_policy DLX ".*\.events|.*\.commands" '{"dead-letter-exchange":"am-dlx"}' --apply-to queues
 ```
 
 Note that a policy applies to existing **and future** queues as well, so you don't have to reissue those commands each time a new service appears!
