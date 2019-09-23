@@ -3,6 +3,7 @@ from typing import Any, Dict
 import argparse
 import json
 import os.path
+import time
 
 import cbor
 import pika
@@ -21,7 +22,7 @@ class EventSender(Service):
             self.use_json()
 
     def on_ready(self):
-        self.publish_event(self.event, self.payload)
+        self.publish_event(self.event, self.payload, "debug" + str(time.time()))
 
     def on_delivery_confirmation(self, method_frame: pika.frame.Method) -> None:
         confirmation_type: str = method_frame.method.NAME.split(".")[1].lower()

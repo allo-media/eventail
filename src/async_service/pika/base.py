@@ -108,7 +108,7 @@ class Service(object):
 
         # for events publishing only
         self._deliveries: Dict[
-            int, Tuple[str, str, JSON_MODEL, bool, Optional[HEADER]]
+            int, Tuple[str, str, JSON_MODEL, str, bool, Optional[HEADER]]
         ] = {}
         self._last_confirm = 0
         self._acked = 0
@@ -527,8 +527,8 @@ class Service(object):
             envelope["reply_to"] = properties.reply_to
         if properties.correlation_id:
             envelope["correlation_id"] = properties.correlation_id
-        if properties.headers and "status" in properties.headers:
-            envelope["status"] = properties.headers["status"]
+        if properties.headers:
+            envelope.update(properties.headers)
         LOGGER.info("Received returned message: %s", routing_key)
         try:
             self.handle_returned_message(routing_key, payload, envelope)
@@ -565,12 +565,19 @@ class Service(object):
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
+        if headers is None or "conversation_id" not in headers:
+            self.log("error", f"Missing headers on {routing_key}")
+            # unrecoverable error, send to dead letter
+            ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
+            return
+        conversation_id = headers["conversation_id"]
+
         try:
             payload: JSON_MODEL = decoder.loads(body) if body else None
         except ValueError:
             self.log(
                 "Error",
-                "Unable to decode payload for {}; dead lettering.".format(routing_key),
+                f"Unable to decode payload for {routing_key} {conversation_id}; dead lettering.",
             )
             # Unrecoverable, put to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
@@ -592,20 +599,29 @@ class Service(object):
                 ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
                 return
             if reply_to:
-                with self.ack_policy(ch, basic_deliver, reply_to, correlation_id):
-                    self.handle_command(routing_key, payload, reply_to, correlation_id)
+                with self.ack_policy(
+                    ch, basic_deliver, conversation_id, reply_to, correlation_id
+                ):
+                    self.handle_command(
+                        routing_key, payload, conversation_id, reply_to, correlation_id
+                    )
             else:
-                with self.ack_policy(ch, basic_deliver, reply_to, correlation_id):
-                    self.handle_result(routing_key, payload, status, correlation_id)
+                with self.ack_policy(
+                    ch, basic_deliver, conversation_id, reply_to, correlation_id
+                ):
+                    self.handle_result(
+                        routing_key, payload, conversation_id, status, correlation_id
+                    )
         else:
-            with self.ack_policy(ch, basic_deliver, "", ""):
-                self.handle_event(routing_key, payload)
+            with self.ack_policy(ch, basic_deliver, conversation_id, "", ""):
+                self.handle_event(routing_key, payload, conversation_id)
 
     @contextmanager
     def ack_policy(
         self,
         ch: pika.channel.Channel,
         deliver: pika.spec.Basic.Deliver,
+        conversation_id: str,
         reply_to: str,
         correlation_id: str,
     ) -> Generator[None, None, None]:
@@ -614,8 +630,8 @@ class Service(object):
         except Exception as e:
             self.log(
                 "error",
-                "Unexpected error while processing message {}: {}".format(
-                    deliver.routing_key, e
+                "Unexpected error while processing message {} {}: {}".format(
+                    deliver.routing_key, conversation_id, e
                 ),
             )
             # retry once
@@ -626,13 +642,17 @@ class Service(object):
                     self.return_error(
                         reply_to,
                         {"reason": "unhandled exception", "message": str(e)},
+                        conversation_id,
                         correlation_id,
                     )
                     ch.basic_ack(delivery_tag=deliver.delivery_tag)
                 else:
                     # dead letter
                     self.log(
-                        "error", "Giving up on {}: {}".format(deliver.routing_key, e)
+                        "error",
+                        "Giving up on {} {}: {}".format(
+                            deliver.routing_key, conversation_id, e
+                        ),
                     )
                     ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
@@ -680,6 +700,7 @@ class Service(object):
         exchange: str,
         routing_key: str,
         message: JSON_MODEL,
+        conversation_id: str,
         mandatory: bool,
         reply_to: str = "",
         correlation_id: str = "",
@@ -689,6 +710,9 @@ class Service(object):
 
         The `message` is any data conforming to the JSON model.
         """
+        if headers is None:
+            headers = {}
+        headers["conversation_id"] = conversation_id
         self._channel.basic_publish(
             exchange=exchange,
             routing_key=routing_key,
@@ -707,6 +731,7 @@ class Service(object):
             exchange,
             routing_key,
             message,
+            conversation_id,
             mandatory,
             headers,
         )
@@ -758,6 +783,7 @@ class Service(object):
         self,
         command: str,
         message: JSON_MODEL,
+        conversation_id: str,
         reply_to: str,
         correlation_id: str,
         mandatory: bool = True,
@@ -772,6 +798,7 @@ class Service(object):
             self.CMD_EXCHANGE,
             command,
             message,
+            conversation_id,
             mandatory,
             reply_to=reply_to,
             correlation_id=correlation_id,
@@ -781,6 +808,7 @@ class Service(object):
         self,
         destination: str,
         message: JSON_MODEL,
+        conversation_id: str,
         correlation_id: str,
         mandatory: bool = True,
     ) -> None:
@@ -795,6 +823,7 @@ class Service(object):
             self.CMD_EXCHANGE,
             destination,
             message,
+            conversation_id,
             mandatory,
             correlation_id=correlation_id,
             headers=headers,
@@ -804,6 +833,7 @@ class Service(object):
         self,
         destination: str,
         message: JSON_MODEL,
+        conversation_id: str,
         correlation_id: str,
         mandatory: bool = True,
     ) -> None:
@@ -818,13 +848,18 @@ class Service(object):
             self.CMD_EXCHANGE,
             destination,
             message,
+            conversation_id,
             mandatory,
             correlation_id=correlation_id,
             headers=headers,
         )
 
     def publish_event(
-        self, event: str, message: JSON_MODEL, mandatory: bool = False
+        self,
+        event: str,
+        message: JSON_MODEL,
+        conversation_id: str,
+        mandatory: bool = False,
     ) -> None:
         """Publish an event on the bus.
 
@@ -836,7 +871,7 @@ class Service(object):
         is unroutable.
         The default is False because some events maybe unused yet.
         """
-        self._emit(self.EVENT_EXCHANGE, event, message, mandatory)
+        self._emit(self.EVENT_EXCHANGE, event, message, conversation_id, mandatory)
 
     def call_later(self, delay: int, callback: Callable) -> None:
         """Call `callback` after `delay` seconds."""
@@ -879,7 +914,9 @@ class Service(object):
                 self._connection.ioloop.stop()
             LOGGER.info("Stopped")
 
-    def handle_event(self, event: str, payload: JSON_MODEL) -> None:
+    def handle_event(
+        self, event: str, payload: JSON_MODEL, conversation_id: str
+    ) -> None:
         """Handle incoming event (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
@@ -891,12 +928,17 @@ class Service(object):
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
-            handler(payload)
+            handler(payload, conversation_id)
         else:
             self.log("error", f"unexpected event {event}; check your subscriptions!")
 
     def handle_command(
-        self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
+        self,
+        command: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        reply_to: str,
+        correlation_id: str,
     ) -> None:
         """Handle incoming commands (may be overwriten by subclasses).
 
@@ -911,7 +953,7 @@ class Service(object):
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
-            handler(payload, reply_to, correlation_id)
+            handler(payload, conversation_id, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log(
@@ -919,7 +961,12 @@ class Service(object):
             )
 
     def handle_result(
-        self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
+        self,
+        key: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        status: str,
+        correlation_id: str,
     ) -> None:
         """Handle incoming result (may be overwritten by subclasses).
 
@@ -934,7 +981,7 @@ class Service(object):
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
-            handler(payload, status, correlation_id)
+            handler(payload, conversation_id, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log("error", f"unexpected result {key}; check your subscriptions!")

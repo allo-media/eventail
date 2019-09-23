@@ -30,10 +30,13 @@ class Ping(Service):
         self.healthcheck()
         self.ping()
 
-    def handle_result(self, key, message, status, correlation_id):
+    def handle_result(self, key, message, conversation_id, status, correlation_id):
         self.log("info", "Received {} {}".format(key, status))
         if key == self.return_key:
-            self.log("info", "Got echo: {} {}".format(message, correlation_id))
+            self.log(
+                "info",
+                "Got echo: {} {} {}".format(message, conversation_id, correlation_id),
+            )
         else:
             # should never happen: means we misconfigured the routing keys
             self.log("error", "Unexpected message {} {}".format(key, status))
@@ -49,11 +52,13 @@ class Ping(Service):
     def ping(self):
         message = {"message": choice(MESSAGES)}
         self.log("info", "Sending: {} {}".format(message, self._message_number))
+        conversation_id = correlation_id = "anyid" + str(self._message_number)
         self.send_command(
             "pong.EchoMessage",
             message,
+            conversation_id,
             self.return_key,
-            "anyid" + str(self._message_number),
+            correlation_id,
         )
         self.call_later(1, self.ping)
 

@@ -11,9 +11,15 @@ JSON_MODEL = Dict[str, Any]
 
 class Monitor(Service):
     def handle_result(
-        self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
+        self,
+        key: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        status: str,
+        correlation_id: str,
     ) -> None:
         print("Got a Result:", key)
+        print("conversation ID:", conversation_id)
         print("Correlation ID:", correlation_id)
         print("Status", status)
         print("Payload:")
@@ -22,9 +28,15 @@ class Monitor(Service):
         print()
 
     def handle_command(
-        self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
+        self,
+        command: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        reply_to: str,
+        correlation_id: str,
     ) -> None:
         print("Got a Command", command)
+        print("conversation ID:", conversation_id)
         print("Correlation ID", correlation_id)
         print("Return to", reply_to)
         print("Payload:")
@@ -32,8 +44,11 @@ class Monitor(Service):
         print("---------")
         print()
 
-    def handle_event(self, event: str, payload: JSON_MODEL) -> None:
+    def handle_event(
+        self, event: str, payload: JSON_MODEL, conversation_id: str
+    ) -> None:
         print("Got an Event", event)
+        print("conversation ID:", conversation_id)
         print("Payload:")
         pprint.pprint(payload)
         print("---------")

@@ -10,11 +10,13 @@ class EchoService(Service):
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
 
-    async def on_EchoMessage(self, message, reply_to, correlation_id):
+    async def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing key 'message' in message!"
         await self.log("info", "Echoing {}".format(message))
         try:
-            await self.return_success(reply_to, message, correlation_id, mandatory=True)
+            await self.return_success(
+                reply_to, message, conversation_id, correlation_id, mandatory=True
+            )
         except ValueError:
             await self.log("Error", f"Unroutable {reply_to}")
 
