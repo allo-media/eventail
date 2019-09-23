@@ -2,7 +2,8 @@ import asyncio
 import json
 import os
 import signal
-from typing import Any, Callable, Coroutine, Dict, Optional, Sequence
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, Optional, Sequence
 
 import aiormq
 import cbor
@@ -99,112 +100,61 @@ class Service:
                 )
                 return
             if reply_to:
-                await self.on_command(
-                    message.channel,
-                    routing_key,
-                    payload,
-                    reply_to,
-                    correlation_id,
-                    message.delivery,
-                )
+                async with self.ack_policy(
+                    message.channel, message.delivery, reply_to, correlation_id
+                ):
+                    await self.handle_command(
+                        routing_key, payload, reply_to, correlation_id
+                    )
             else:
-                await self.on_result(
-                    message.channel,
-                    routing_key,
-                    payload,
-                    status,
-                    correlation_id,
-                    message.delivery,
-                )
+                async with self.ack_policy(
+                    message.channel, message.delivery, reply_to, correlation_id
+                ):
+                    await self.handle_result(
+                        routing_key, payload, status, correlation_id
+                    )
         else:
-            await self.on_event(message.channel, routing_key, payload, message.delivery)
+            async with self.ack_policy(message.channel, message.delivery, "", ""):
+                await self.handle_event(routing_key, payload)
 
-    async def on_command(
+    @asynccontextmanager
+    async def ack_policy(
         self,
         ch: aiormq.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
+        deliver: types.spec.Basic.Deliver,
         reply_to: str,
         correlation_id: str,
-        delivery: types.spec.Basic.Deliver,
-    ) -> None:
+    ) -> AsyncGenerator[None, None]:
         try:
-            await self.handle_command(routing_key, payload, reply_to, correlation_id)
-        except Exception as e:
-            # unexpected error
-            await self.log(
-                "error",
-                "Unexpected error while processing command {}: {}".format(
-                    routing_key, e
-                ),
-            )
-            # requeue once
-            if not delivery.redelivered:
-                ch.basic_nack(delivery.delivery_tag, requeue=True)
-            else:
-                # return error to sender
-                await self.return_error(
-                    reply_to,
-                    {"reason": "unhandled exception", "message": str(e)},
-                    correlation_id,
-                )
-                await ch.basic_ack(delivery.delivery_tag)
-        else:
-            await ch.basic_ack(delivery.delivery_tag)
-
-    async def on_result(
-        self,
-        ch: aiormq.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
-        status: str,
-        correlation_id: str,
-        delivery: types.spec.Basic.Deliver,
-    ) -> None:
-        try:
-            await self.handle_result(routing_key, payload, status, correlation_id)
+            yield None
         except Exception as e:
             await self.log(
                 "error",
-                "Unexpected error while processing result {}: {}".format(
-                    routing_key, e
+                "Unexpected error while processing message {}: {}".format(
+                    deliver.routing_key, e
                 ),
             )
-            # requeue once
-            if not delivery.redelivered:
-                ch.basic_nack(delivery.delivery_tag, requeue=True)
+            # retry once
+            if not deliver.redelivered:
+                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
             else:
-                # dead letter
-                await self.log("error", "Giving up on {}: {}".format(routing_key, e))
-                ch.basic_nack(delivery.delivery_tag, requeue=False)
+                if reply_to:
+                    await self.return_error(
+                        reply_to,
+                        {"reason": "unhandled exception", "message": str(e)},
+                        correlation_id,
+                    )
+                    await ch.basic_ack(delivery_tag=deliver.delivery_tag)
+                else:
+                    # dead letter
+                    await self.log(
+                        "error", "Giving up on {}: {}".format(deliver.routing_key, e)
+                    )
+                    await ch.basic_nack(
+                        delivery_tag=deliver.delivery_tag, requeue=False
+                    )
         else:
-            await ch.basic_ack(delivery.delivery_tag)
-
-    async def on_event(
-        self,
-        ch: aiormq.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
-        delivery: types.spec.Basic.Deliver,
-    ) -> None:
-        try:
-            await self.handle_event(routing_key, payload)
-        except Exception as e:
-            await self.log(
-                "error",
-                "Unexpected error while processing result {}: {}".format(
-                    routing_key, e
-                ),
-            )
-            # requeue once
-            if not delivery.redelivered:
-                ch.basic_nack(delivery.delivery_tag, requeue=True)
-            else:
-                # dead letter
-                await self.log("error", "Giving up on {}: {}".format(routing_key, e))
-                ch.basic_nack(delivery.delivery_tag, requeue=False)
-        else:
-            await ch.basic_ack(delivery.delivery_tag)
+            await ch.basic_ack(delivery_tag=deliver.delivery_tag)
 
     async def _emit(
         self,
@@ -305,9 +255,7 @@ class Service:
                     events_ok.queue, self.EVENT_EXCHANGE, routing_key=key
                 )
             # returns ConsumeOK, which has consumer_tag attribute
-            res = await self._channel.basic_consume(
-                events_ok.queue, self.on_message
-            )
+            res = await self._channel.basic_consume(events_ok.queue, self.on_message)
             self._event_consumer_tag = res.consumer_tag
 
         if self._command_routing_keys:
@@ -542,4 +490,3 @@ class Service:
         (to be implemented by subclasses)
         """
         pass
-
