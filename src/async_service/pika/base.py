@@ -664,7 +664,7 @@ class Service(object):
         except Exception as e:
             self.log(
                 "error",
-                "Unexpected error while processing result {}: {}".format(
+                "Unexpected error while processing event {}: {}".format(
                     routing_key, e
                 ),
             )
@@ -919,8 +919,6 @@ class Service(object):
                 self._connection.ioloop.stop()
             LOGGER.info("Stopped")
 
-    # Abstract methods
-
     def handle_event(self, event: str, payload: JSON_MODEL) -> None:
         """Handle incoming event (may be overwritten by subclasses).
 
@@ -980,6 +978,8 @@ class Service(object):
         else:
             # should never happens: means we misconfigured the routing keys
             self.log("error", f"unexpected result {key}; check your subscriptions!")
+
+    # Abstract methods
 
     def handle_returned_message(
         self, key: str, payload: JSON_MODEL, envelope: Dict[str, str]

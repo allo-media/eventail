@@ -304,11 +304,11 @@ class Service:
                 await self._channel.queue_bind(
                     events_ok.queue, self.EVENT_EXCHANGE, routing_key=key
                 )
-                # returns ConsumeOK, which has consumer_tag attribute
-                res = await self._channel.basic_consume(
-                    events_ok.queue, self.on_message
-                )
-                self._event_consumer_tag = res.consumer_tag
+            # returns ConsumeOK, which has consumer_tag attribute
+            res = await self._channel.basic_consume(
+                events_ok.queue, self.on_message
+            )
+            self._event_consumer_tag = res.consumer_tag
 
         if self._command_routing_keys:
             cmds_ok = await self._channel.queue_declare(
@@ -466,15 +466,6 @@ class Service:
         """
         await self._emit(self.EVENT_EXCHANGE, event, message, mandatory)
 
-    # Abstract methods
-
-    async def on_ready(self) -> None:
-        """Code to execute once the service comes online.
-
-        (to be implemented by subclasses)
-        """
-        pass
-
     def create_task(self, coro: Coroutine) -> Coroutine:
         """Launch a task."""
         return self._channel.create_task(coro)
@@ -542,3 +533,13 @@ class Service:
             await self.log(
                 "error", f"unexpected result {key}; check your subscriptions!"
             )
+
+    # Abstract methods
+
+    async def on_ready(self) -> None:
+        """Code to execute once the service comes online.
+
+        (to be implemented by subclasses)
+        """
+        pass
+
