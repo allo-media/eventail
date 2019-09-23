@@ -10,6 +10,7 @@ class EchoService(Service):
     RETRY_DELAY = 2
 
     def on_EchoMessage(self, message, reply_to, correlation_id):
+        assert "message" in message, "missing 'message' key!"
         self.log("info", "Echoing {}".format(message))
         self.return_success(reply_to, message, correlation_id)
 

@@ -11,7 +11,18 @@ import json
 import logging
 import os
 import signal
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from contextlib import contextmanager
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import cbor
 import pika
@@ -581,102 +592,51 @@ class Service(object):
                 ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
                 return
             if reply_to:
-                self.on_command(
-                    ch, routing_key, payload, reply_to, correlation_id, basic_deliver
-                )
+                with self.ack_policy(ch, basic_deliver, reply_to, correlation_id):
+                    self.handle_command(routing_key, payload, reply_to, correlation_id)
             else:
-                self.on_result(
-                    ch, routing_key, payload, status, correlation_id, basic_deliver
-                )
+                with self.ack_policy(ch, basic_deliver, reply_to, correlation_id):
+                    self.handle_result(routing_key, payload, status, correlation_id)
         else:
-            self.on_event(ch, routing_key, payload, basic_deliver)
+            with self.ack_policy(ch, basic_deliver, "", ""):
+                self.handle_event(routing_key, payload)
 
-    def on_command(
+    @contextmanager
+    def ack_policy(
         self,
         ch: pika.channel.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
+        deliver: pika.spec.Basic.Deliver,
         reply_to: str,
         correlation_id: str,
-        basic_deliver: pika.spec.Basic.Deliver,
-    ) -> None:
+    ) -> Generator[None, None, None]:
         try:
-            self.handle_command(routing_key, payload, reply_to, correlation_id)
-        except Exception as e:
-            # unexpected error
-            self.log(
-                "error",
-                "Unexpected error while processing command {}: {}".format(
-                    routing_key, e
-                ),
-            )
-            # requeue once
-            if not basic_deliver.redelivered:
-                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
-            else:
-                # return error to sender
-                self.return_error(
-                    reply_to,
-                    {"reason": "unhandled exception", "message": str(e)},
-                    correlation_id,
-                )
-                ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-        else:
-            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-
-    def on_result(
-        self,
-        ch: pika.channel.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
-        status: str,
-        correlation_id: str,
-        basic_deliver: pika.spec.Basic.Deliver,
-    ) -> None:
-        try:
-            self.handle_result(routing_key, payload, status, correlation_id)
+            yield None
         except Exception as e:
             self.log(
                 "error",
-                "Unexpected error while processing result {}: {}".format(
-                    routing_key, e
+                "Unexpected error while processing message {}: {}".format(
+                    deliver.routing_key, e
                 ),
             )
             # retry once
-            if not basic_deliver.redelivered:
-                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
+            if not deliver.redelivered:
+                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
             else:
-                # dead letter
-                self.log("error", "Giving up on {}: {}".format(routing_key, e))
-                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
+                if reply_to:
+                    self.return_error(
+                        reply_to,
+                        {"reason": "unhandled exception", "message": str(e)},
+                        correlation_id,
+                    )
+                    ch.basic_ack(delivery_tag=deliver.delivery_tag)
+                else:
+                    # dead letter
+                    self.log(
+                        "error", "Giving up on {}: {}".format(deliver.routing_key, e)
+                    )
+                    ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
-            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
-
-    def on_event(
-        self,
-        ch: pika.channel.Channel,
-        routing_key: str,
-        payload: JSON_MODEL,
-        basic_deliver: pika.spec.Basic.Deliver,
-    ) -> None:
-        try:
-            self.handle_event(routing_key, payload)
-        except Exception as e:
-            self.log(
-                "error",
-                "Unexpected error while processing event {}: {}".format(
-                    routing_key, e
-                ),
-            )
-            # retry once
-            if not basic_deliver.redelivered:
-                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=True)
-            else:
-                # dead letter
-                self.log("error", "Giving up on {}: {}".format(routing_key, e))
-                ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
-        else:
-            ch.basic_ack(delivery_tag=basic_deliver.delivery_tag)
+            ch.basic_ack(delivery_tag=deliver.delivery_tag)
 
     def stop_consuming(self) -> None:
         """Tell RabbitMQ that you would like to stop consuming by sending the
