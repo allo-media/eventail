@@ -77,9 +77,9 @@ class Ping(Service):
 if __name__ == "__main__":
     uvloop.install()
     service_name = sys.argv[1]
-    url = sys.argv[2] if len(sys.argv) > 2 else "amqp://localhost"
+    urls = sys.argv[2:] if len(sys.argv) > 2 else ["amqp://localhost"]
 
     loop = asyncio.get_event_loop()
-    service = Ping(url, "ping", loop=loop)
+    service = Ping(urls, service_name, loop=loop)
     print("To exit press CTRL+C")
     loop.run_until_complete(service.run())  # auto reconnect in built-in
