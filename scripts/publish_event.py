@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from typing import Any, Dict
+from typing import Any, Dict, List
 import argparse
 import json
 import os.path
@@ -13,9 +13,13 @@ from async_service.pika import Service
 
 class EventSender(Service):
     def __init__(
-        self, url: str, event: str, payload: Dict[str, Any], use_json: bool = False
+        self,
+        urls: List[str],
+        event: str,
+        payload: Dict[str, Any],
+        use_json: bool = False,
     ) -> None:
-        super().__init__(url, [], [], "debug_event_publisher")
+        super().__init__(urls, [], [], "debug_event_publisher")
         self.event = event
         self.payload = payload
         if use_json:
@@ -42,7 +46,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Publish an Event and its payload on the given broker"
     )
-    parser.add_argument("amqp_url", help="URL of the broker, including credentials")
+    parser.add_argument(
+        "amqp_url", help="URL of the broker, including credentials", type=str
+    )
     parser.add_argument("event", help="Event Name")
     parser.add_argument(
         "payload",
@@ -55,6 +61,6 @@ if __name__ == "__main__":
         data = ins.read()
     payload = unserialize(data)
     event_sender = EventSender(
-        args.amqp_url, args.event, payload, use_json=ext == "json"
+        [args.amqp_url], args.event, payload, use_json=ext == "json"
     )
     event_sender.run()

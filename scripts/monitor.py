@@ -78,7 +78,7 @@ if __name__ == "__main__":
         default=["#"],
     )
     args = parser.parse_args()
-    monitor = Monitor(args.amqp_url, args.events, args.commands, "debug_monitor")
+    monitor = Monitor([args.amqp_url], args.events, args.commands, "debug_monitor")
     monitor.use_exclusive_queues()
     print("Subscribing to events:", args.events)
     print("Subscribing to commands:", args.commands)

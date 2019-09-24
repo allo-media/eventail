@@ -3,7 +3,16 @@ import json
 import os
 import signal
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, Optional, Sequence
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+)
 
 import aiormq
 import cbor
@@ -29,7 +38,7 @@ class Service:
 
     def __init__(
         self,
-        amqp_url: str,
+        amqp_urls: List[str],
         event_routing_keys: Sequence[str],
         command_routing_keys: Sequence[str],
         logical_service: str,
@@ -41,7 +50,7 @@ class Service:
         :param str amqp_url: The AMQP url to connect with
 
         """
-        self._url = amqp_url
+        self._urls = amqp_urls
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
@@ -235,16 +244,23 @@ class Service:
         """Connect to RabbitMQ, declare the topology and consumers."""
         # Perform connection
         connected = False
-        while not connected:
+        url_idx = 0
+        while not (connected or self.stopped.is_set()):
             try:
-                connection = await aiormq.connect(self._url, loop=self.loop)
+                connection = await aiormq.connect(self._urls[url_idx], loop=self.loop)
             except ConnectionError as e:
                 if e.errno == 111:
                     await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
                 else:
                     self.stopped.set()
+            except Exception:
+                self.stopped.set()
+                raise
             else:
                 connected = True
+            url_idx = (url_idx + 1) % len(self._urls)
+        if not connected:
+            return
         self._connection = connection
         connection.closing.add_done_callback(self.on_connection_closed)
 
@@ -325,7 +341,8 @@ class Service:
         """
         print("Shutting down in 3 seconds.")
         self._should_reconnect = False
-        if self._connection.is_closed:
+        if not hasattr(self, "_connection") or self._connection.is_closed:
+            self.stopped.set()
             return
         await self.log("warning", "Shutting down…")
         await self._channel.basic_cancel(self._event_consumer_tag)
@@ -454,7 +471,7 @@ class Service:
 
     def create_task(self, coro: Coroutine) -> Coroutine:
         """Launch a task."""
-        return self._channel.create_task(coro)
+        return getattr(self, "_channel", asyncio).create_task(coro)
 
     async def handle_event(
         self, event: str, payload: JSON_MODEL, conversation_id: str

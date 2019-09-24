@@ -35,11 +35,11 @@ class EchoService(Service):
 
 if __name__ == "__main__":
     uvloop.install()
-    url = sys.argv[1] if len(sys.argv) > 1 else "amqp://localhost"
+    urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
 
     loop = asyncio.get_event_loop()
     service = EchoService(
-        url, ["ShutdownStarted"], ["pong.EchoMessage"], "pong", loop=loop
+        urls, ["ShutdownStarted"], ["pong.EchoMessage"], "pong", loop=loop
     )
     print("To exit press CTRL+C")
     loop.run_until_complete(service.run())  # auto reconnect in built-in
