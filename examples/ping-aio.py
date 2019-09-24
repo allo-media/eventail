@@ -29,10 +29,14 @@ class Ping(Service):
             url, ["ShutdownStarted"], [self.return_key], logical_service, loop=loop
         )
 
-    async def handle_result(self, key, message, status, correlation_id):
+    async def handle_result(
+        self, key, message, conversation_id, status, correlation_id
+    ):
         await self.log("debug", f"Received {key} {status}")
         if key == self.return_key:
-            await self.log("info", f"Got echo {message} {correlation_id}")
+            await self.log(
+                "info", f"Got echo {message} {conversation_id} {correlation_id}"
+            )
         else:
             # should never happen: means we misconfigured the routing keys
             await self.log("error", f"Unexpected message {key} {status}")
@@ -45,11 +49,17 @@ class Ping(Service):
         i = 1
         while True:
             message = {"message": choice(MESSAGES)}
-            correlation_id = "anyid" + str(i)
-            await self.log("info", f"Sending {message} {correlation_id}")
+            conversation_id = correlation_id = "anyid" + str(i)
+            await self.log(
+                "info", f"Sending {message} {conversation_id} {correlation_id}"
+            )
             # Will raise ValueError if unroutable and we'll stop.
             await self.send_command(
-                "pong.EchoMessage", message, self.return_key, correlation_id
+                "pong.EchoMessage",
+                message,
+                conversation_id,
+                self.return_key,
+                correlation_id,
             )
             i += 1
             await asyncio.sleep(1)

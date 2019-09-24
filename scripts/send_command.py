@@ -29,13 +29,22 @@ class RPC(Service):
             self.use_json()
 
     def on_ready(self):
-        self.send_command(self.service_command, self.payload, "debug.return", "1")
+        self.send_command(
+            self.service_command, self.payload, "debug", "debug.return", "1"
+        )
 
     def handle_result(
-        self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
+        self,
+        key: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        status: str,
+        correlation_id: str,
     ):
         if correlation_id == "1":
             print("Correlation ID is O.K.")
+        if conversation_id == "debug":
+            print("Conversation ID is O.K.")
         if status == "success":
             print("Success!")
         else:

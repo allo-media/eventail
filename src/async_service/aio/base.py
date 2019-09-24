@@ -74,6 +74,12 @@ class Service:
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = message.delivery.routing_key
         exchange: str = message.delivery.exchange
+        if headers is None or "conversation_id" not in headers:
+            self.log("error", f"Missing headers on {routing_key}")
+            # unrecoverable error, send to dead letter
+            message.channel.basic_nack(message.delivery.delivery_tag, requeue=False)
+            return
+        conversation_id = headers["conversation_id"]
         try:
             payload: JSON_MODEL = decoder.loads(message.body) if message.body else None
         except ValueError:
@@ -92,7 +98,8 @@ class Service:
             status = headers.get("status", "") if headers else ""
             if not (reply_to or status):
                 await self.log(
-                    "error", "invalid enveloppe for command/result: {}".format(headers)
+                    "error",
+                    f"invalid enveloppe for command/result: {routing_key} {conversation_id}",
                 )
                 # Unrecoverable, put to dead letter
                 await message.channel.basic_nack(
@@ -101,27 +108,38 @@ class Service:
                 return
             if reply_to:
                 async with self.ack_policy(
-                    message.channel, message.delivery, reply_to, correlation_id
+                    message.channel,
+                    message.delivery,
+                    conversation_id,
+                    reply_to,
+                    correlation_id,
                 ):
                     await self.handle_command(
-                        routing_key, payload, reply_to, correlation_id
+                        routing_key, payload, conversation_id, reply_to, correlation_id
                     )
             else:
                 async with self.ack_policy(
-                    message.channel, message.delivery, reply_to, correlation_id
+                    message.channel,
+                    message.delivery,
+                    conversation_id,
+                    reply_to,
+                    correlation_id,
                 ):
                     await self.handle_result(
-                        routing_key, payload, status, correlation_id
+                        routing_key, payload, conversation_id, status, correlation_id
                     )
         else:
-            async with self.ack_policy(message.channel, message.delivery, "", ""):
-                await self.handle_event(routing_key, payload)
+            async with self.ack_policy(
+                message.channel, message.delivery, conversation_id, "", ""
+            ):
+                await self.handle_event(routing_key, payload, conversation_id)
 
     @asynccontextmanager
     async def ack_policy(
         self,
         ch: aiormq.Channel,
         deliver: types.spec.Basic.Deliver,
+        conversation_id: str,
         reply_to: str,
         correlation_id: str,
     ) -> AsyncGenerator[None, None]:
@@ -130,8 +148,8 @@ class Service:
         except Exception as e:
             await self.log(
                 "error",
-                "Unexpected error while processing message {}: {}".format(
-                    deliver.routing_key, e
+                "Unexpected error while processing message {} {}: {}".format(
+                    deliver.routing_key, conversation_id, e
                 ),
             )
             # retry once
@@ -142,13 +160,17 @@ class Service:
                     await self.return_error(
                         reply_to,
                         {"reason": "unhandled exception", "message": str(e)},
+                        conversation_id,
                         correlation_id,
                     )
                     await ch.basic_ack(delivery_tag=deliver.delivery_tag)
                 else:
                     # dead letter
                     await self.log(
-                        "error", "Giving up on {}: {}".format(deliver.routing_key, e)
+                        "error",
+                        "Giving up on {} {}: {}".format(
+                            deliver.routing_key, conversation_id, e
+                        ),
                     )
                     await ch.basic_nack(
                         delivery_tag=deliver.delivery_tag, requeue=False
@@ -161,6 +183,7 @@ class Service:
         exchange: str,
         routing_key: str,
         message: JSON_MODEL,
+        conversation_id: str,
         mandatory: bool,
         reply_to: str = "",
         correlation_id: str = "",
@@ -174,6 +197,9 @@ class Service:
 
         If the message is unroutable, a ValueError is raised.
         """
+        if headers is None:
+            headers = {}
+        headers["conversation_id"] = conversation_id
         while True:
             try:
                 await self._channel.basic_publish(
@@ -334,6 +360,7 @@ class Service:
         self,
         command: str,
         message: JSON_MODEL,
+        conversation_id: str,
         reply_to: str,
         correlation_id: str,
         mandatory: bool = False,
@@ -348,6 +375,7 @@ class Service:
             self.CMD_EXCHANGE,
             command,
             message,
+            conversation_id,
             mandatory,
             reply_to=reply_to,
             correlation_id=correlation_id,
@@ -357,6 +385,7 @@ class Service:
         self,
         destination: str,
         message: JSON_MODEL,
+        conversation_id: str,
         correlation_id: str,
         mandatory: bool = False,
     ) -> None:
@@ -371,6 +400,7 @@ class Service:
             self.CMD_EXCHANGE,
             destination,
             message,
+            conversation_id,
             mandatory,
             correlation_id=correlation_id,
             headers=headers,
@@ -380,6 +410,7 @@ class Service:
         self,
         destination: str,
         message: JSON_MODEL,
+        conversation_id: str,
         correlation_id: str,
         mandatory: bool = False,
     ) -> None:
@@ -394,13 +425,18 @@ class Service:
             self.CMD_EXCHANGE,
             destination,
             message,
+            conversation_id,
             mandatory,
             correlation_id=correlation_id,
             headers=headers,
         )
 
     async def publish_event(
-        self, event: str, message: JSON_MODEL, mandatory: bool = False
+        self,
+        event: str,
+        message: JSON_MODEL,
+        conversation_id: str,
+        mandatory: bool = False,
     ) -> None:
         """Publish an event on the bus.
 
@@ -412,13 +448,17 @@ class Service:
         is unroutable.
         The default is False because some events maybe unused yet.
         """
-        await self._emit(self.EVENT_EXCHANGE, event, message, mandatory)
+        await self._emit(
+            self.EVENT_EXCHANGE, event, message, conversation_id, mandatory
+        )
 
     def create_task(self, coro: Coroutine) -> Coroutine:
         """Launch a task."""
         return self._channel.create_task(coro)
 
-    async def handle_event(self, event: str, payload: JSON_MODEL) -> None:
+    async def handle_event(
+        self, event: str, payload: JSON_MODEL, conversation_id: str
+    ) -> None:
         """Handle incoming event (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
@@ -430,14 +470,19 @@ class Service:
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
-            await handler(payload)
+            await handler(payload, conversation_id)
         else:
             await self.log(
                 "error", f"unexpected event {event}; check your subscriptions!"
             )
 
     async def handle_command(
-        self, command: str, payload: JSON_MODEL, reply_to: str, correlation_id: str
+        self,
+        command: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        reply_to: str,
+        correlation_id: str,
     ) -> None:
         """Handle incoming commands (may be overwriten by subclasses).
 
@@ -452,7 +497,7 @@ class Service:
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
-            await handler(payload, reply_to, correlation_id)
+            await handler(payload, conversation_id, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log(
@@ -460,7 +505,12 @@ class Service:
             )
 
     async def handle_result(
-        self, key: str, payload: JSON_MODEL, status: str, correlation_id: str
+        self,
+        key: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        status: str,
+        correlation_id: str,
     ) -> None:
         """Handle incoming result (may be overwritten by subclasses).
 
@@ -475,7 +525,7 @@ class Service:
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
-            await handler(payload, status, correlation_id)
+            await handler(payload, conversation_id, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log(

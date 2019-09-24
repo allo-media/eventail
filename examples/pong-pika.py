@@ -9,10 +9,10 @@ class EchoService(Service):
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
 
-    def on_EchoMessage(self, message, reply_to, correlation_id):
+    def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing 'message' key!"
         self.log("info", "Echoing {}".format(message))
-        self.return_success(reply_to, message, correlation_id)
+        self.return_success(reply_to, message, conversation_id, correlation_id)
 
     def on_ShutdownStarted(self, payload):
         self.log("info", "Received signal for shutdown.")
