@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='async_service',
-    version='0.9',
+    version='0.10',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
