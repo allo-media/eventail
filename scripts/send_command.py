@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from typing import Any, Dict
+from typing import Any, Dict, List
 import argparse
 import json
 import pprint
@@ -16,12 +16,12 @@ JSON_MODEL = Dict[str, Any]
 class RPC(Service):
     def __init__(
         self,
-        url: str,
+        urls: List[str],
         service_command: str,
         payload: JSON_MODEL,
         use_json: bool = False,
     ) -> None:
-        super().__init__(url, [], ["debug.return"], "debug_cmd_sender")
+        super().__init__(urls, [], ["debug.return"], "debug_cmd_sender")
         self.service_command = service_command
         self.payload = payload
         self.use_exclusive_queues()  # Important !!!
@@ -74,5 +74,5 @@ if __name__ == "__main__":
     with open(args.payload, "rb") as ins:
         data = ins.read()
     payload = unserialize(data)
-    rpc = RPC(args.amqp_url, args.command, payload, use_json=ext == "json")
+    rpc = RPC([args.amqp_url], args.command, payload, use_json=ext == "json")
     rpc.run()

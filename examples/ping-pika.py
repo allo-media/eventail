@@ -75,8 +75,8 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
     service_name = sys.argv[1]
-    url = sys.argv[2] if len(sys.argv) > 2 else "amqp://localhost"
-    ping = ReconnectingSupervisor(Ping, url, service_name)
+    urls = sys.argv[2:] if len(sys.argv) > 2 else ["amqp://localhost"]
+    ping = ReconnectingSupervisor(Ping, urls, service_name)
     print("To exit press CTRL+C")
     ping.run()
     print("Bye!")

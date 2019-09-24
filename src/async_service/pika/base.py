@@ -66,7 +66,7 @@ class Service(object):
 
     def __init__(
         self,
-        amqp_url: str,
+        amqp_urls: List[str],
         event_routing_keys: Sequence[str],
         command_routing_keys: Sequence[str],
         logical_service: str,
@@ -74,13 +74,16 @@ class Service(object):
         """Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
 
-        :param str amqp_url: The AMQP url to connect with
+        :param str amqp_urls: List of AMQP urls.
+
+        The service will try to connect to one of them, in a round-robin fashion.
 
         """
-        self._url = amqp_url
+        self._urls = amqp_urls
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
+        self.url_idx = 0
         self._event_queue = logical_service + ".events"
         self._command_queue = logical_service + ".commands"
         self.exclusive_queues = False
@@ -124,9 +127,11 @@ class Service(object):
 
         """
         self.reset_connection_state()
-        LOGGER.info("Connecting to %s", self._url)
+        url = self._urls[self.url_idx]
+        self.url_idx = (self.url_idx + 1) % len(self._urls)
+        LOGGER.info("Connecting to %s", url)
         return pika.SelectConnection(
-            parameters=pika.URLParameters(self._url),
+            parameters=pika.URLParameters(url),
             on_open_callback=self.on_connection_open,
             on_open_error_callback=self.on_connection_open_error,
             on_close_callback=self.on_connection_closed,
@@ -162,7 +167,7 @@ class Service(object):
 
         """
         LOGGER.error("Connection open failed: %s", err)
-        self.reconnect()
+        self.reconnect(True)
 
     def on_connection_closed(
         self, _unused_connection: pika.BaseConnection, reason: Exception
@@ -193,7 +198,7 @@ class Service(object):
         """
         self.save_pending_callbacks()
         self.should_reconnect = should_reconnect
-        self.stop()
+        self.stop(should_reconnect)
 
     def open_channels(self) -> None:
         """Open a new channel with RabbitMQ by issuing the Channel.Open RPC
@@ -884,7 +889,7 @@ class Service(object):
         self._connection = self.connect()
         self._connection.ioloop.start()
 
-    def stop(self) -> None:
+    def stop(self, reconnect=False) -> None:
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
         with RabbitMQ. When RabbitMQ confirms the cancellation, on_cancelok
         will be invoked by pika, which will then closing the channel and
@@ -897,7 +902,7 @@ class Service(object):
         This method is automatically triggered if we receive one of
         these UNIX signals: signal.SIGHUP, signal.SIGTERM, signal.SIGINT.
         """
-        self.should_reconnect = False
+        self.should_reconnect = reconnect
         if not self._closing:
             if not self._connection.is_closed:
                 self.log("warning", "Shutting down…")
