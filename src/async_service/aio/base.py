@@ -157,7 +157,7 @@ class Service:
         except Exception as e:
             await self.log(
                 "error",
-                "Unexpected error while processing message {} {}: {}".format(
+                "Unhandled error while processing message {} {}: {}".format(
                     deliver.routing_key, conversation_id, e
                 ),
             )
@@ -165,25 +165,16 @@ class Service:
             if not deliver.redelivered:
                 await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
             else:
-                if reply_to:
-                    await self.return_error(
-                        reply_to,
-                        {"reason": "unhandled exception", "message": str(e)},
-                        conversation_id,
-                        correlation_id,
-                    )
-                    await ch.basic_ack(delivery_tag=deliver.delivery_tag)
-                else:
-                    # dead letter
-                    await self.log(
-                        "error",
-                        "Giving up on {} {}: {}".format(
-                            deliver.routing_key, conversation_id, e
-                        ),
-                    )
-                    await ch.basic_nack(
-                        delivery_tag=deliver.delivery_tag, requeue=False
-                    )
+                # dead letter
+                await self.log(
+                    "error",
+                    "Giving up on {} {}: {}".format(
+                        deliver.routing_key, conversation_id, e
+                    ),
+                )
+                await ch.basic_nack(
+                    delivery_tag=deliver.delivery_tag, requeue=False
+                )
         else:
             await ch.basic_ack(delivery_tag=deliver.delivery_tag)
 

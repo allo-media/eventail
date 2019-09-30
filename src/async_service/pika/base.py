@@ -87,7 +87,6 @@ class Service(object):
         self._event_queue = logical_service + ".events"
         self._command_queue = logical_service + ".commands"
         self.exclusive_queues = False
-        self._delayed_callbacks: List[Callable] = []
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"
         self._connection: pika.SelectConnection
@@ -196,7 +195,6 @@ class Service(object):
         ioloop.
 
         """
-        self.save_pending_callbacks()
         self.should_reconnect = should_reconnect
         self.stop(should_reconnect)
 
@@ -472,10 +470,6 @@ class Service(object):
             )
             self._consuming = True
         self.was_consuming = True
-        # restore the delayed callbacks over several seconds to prevent load peak
-        for timeout, cb in enumerate(self._delayed_callbacks, 1):
-            self.call_later(1 + timeout // 2, cb)
-        self._delayed_callbacks = []
         self.on_ready()
 
     def add_on_cancel_callback(self) -> None:
@@ -635,7 +629,7 @@ class Service(object):
         except Exception as e:
             self.log(
                 "error",
-                "Unexpected error while processing message {} {}: {}".format(
+                "Unhandled error while processing message {} {}: {}".format(
                     deliver.routing_key, conversation_id, e
                 ),
             )
@@ -643,23 +637,14 @@ class Service(object):
             if not deliver.redelivered:
                 ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
             else:
-                if reply_to:
-                    self.return_error(
-                        reply_to,
-                        {"reason": "unhandled exception", "message": str(e)},
-                        conversation_id,
-                        correlation_id,
-                    )
-                    ch.basic_ack(delivery_tag=deliver.delivery_tag)
-                else:
-                    # dead letter
-                    self.log(
-                        "error",
-                        "Giving up on {} {}: {}".format(
-                            deliver.routing_key, conversation_id, e
-                        ),
-                    )
-                    ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
+                # dead letter
+                self.log(
+                    "error",
+                    "Giving up on {} {}: {}".format(
+                        deliver.routing_key, conversation_id, e
+                    ),
+                )
+                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
             ch.basic_ack(delivery_tag=deliver.delivery_tag)
 
@@ -741,19 +726,6 @@ class Service(object):
             headers,
         )
         LOGGER.info("Published message # %i", self._message_number)
-
-    def save_pending_callbacks(self) -> None:
-        self._delayed_callbacks.extend(
-            [
-                timeout.callback
-                for timeout in sorted(
-                    self._connection.ioloop._timer._timeout_heap,
-                    key=lambda t: t.deadline,
-                )
-                if timeout.callback is not None
-                and timeout.callback.__name__ == "<lambda>"
-            ]
-        )
 
     # Public interface
 
