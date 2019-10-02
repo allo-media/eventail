@@ -3,6 +3,7 @@ import sys
 from random import choice
 
 from async_service.pika import Service, ReconnectingSupervisor
+from async_service.log_criticity import CRITICAL, ERROR, INFO, NOTICE
 
 MESSAGES = [
     "hello",
@@ -15,6 +16,7 @@ MESSAGES = [
     "t'es lourd!",
     "stop that!",
     "so childish…",
+    "bye!",
 ]
 
 
@@ -31,27 +33,27 @@ class Ping(Service):
         self.ping()
 
     def handle_result(self, key, message, conversation_id, status, correlation_id):
-        self.log("info", "Received {} {}".format(key, status))
+        self.log(INFO, "Received {} {}".format(key, status))
         if key == self.return_key:
             self.log(
-                "info",
+                INFO,
                 "Got echo: {} {} {}".format(message, conversation_id, correlation_id),
             )
         else:
             # should never happen: means we misconfigured the routing keys
-            self.log("error", "Unexpected message {} {}".format(key, status))
+            self.log(ERROR, "Unexpected message {} {}".format(key, status))
 
     def on_ShutdownStarted(self, payload):
-        self.log("info", "Received signal for shutdown.")
+        self.log(INFO, "Received signal for shutdown.")
         self.stop()
 
     def handle_returned_message(self, key, message, envelope):
-        self.log("critical", "unroutable {}.{}.{}".format(key, message, envelope))
+        self.log(CRITICAL, "unroutable {}.{}.{}".format(key, message, envelope))
         raise ValueError(f"Wrong routing key {key}")
 
     def ping(self):
         message = {"message": choice(MESSAGES)}
-        self.log("info", "Sending: {} {}".format(message, self._message_number))
+        self.log(INFO, "Sending: {} {}".format(message, self._message_number))
         conversation_id = correlation_id = "anyid" + str(self._message_number)
         self.send_command(
             "pong.EchoMessage",
@@ -63,7 +65,7 @@ class Ping(Service):
         self.call_later(1, self.ping)
 
     def healthcheck(self):
-        self.log("health", "I'm fine!")
+        self.log(NOTICE, "I'm fine!")
         self.call_later(60, self.healthcheck)
 
 

@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import signal
+import time
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -26,6 +27,7 @@ from typing import (
 
 import cbor
 import pika
+from async_service.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
 LOGGER = logging.getLogger(__name__)
 # LOGGER.setLevel(logging.DEBUG)
@@ -534,7 +536,7 @@ class Service(object):
         except Exception as e:
             # unexpected error
             self.log(
-                "Critical",
+                CRITICAL,
                 "in handle_returned_message [{}] {}".format(self.logical_service, e),
             )
             # Crash the service now
@@ -565,7 +567,7 @@ class Service(object):
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
         if headers is None or "conversation_id" not in headers:
-            self.log("error", f"Missing headers on {routing_key}")
+            self.log(ERROR, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
             return
@@ -575,7 +577,7 @@ class Service(object):
             payload: JSON_MODEL = decoder.loads(body) if body else None
         except ValueError:
             self.log(
-                "Error",
+                ERROR,
                 f"Unable to decode payload for {routing_key} {conversation_id}; dead lettering.",
             )
             # Unrecoverable, put to dead letter
@@ -589,7 +591,7 @@ class Service(object):
             status = headers.get("status", "") if headers else ""
             if not (reply_to or status):
                 self.log(
-                    "error",
+                    ERROR,
                     "invalid enveloppe for command/result: {}; dead lettering.".format(
                         headers
                     ),
@@ -628,10 +630,11 @@ class Service(object):
             yield None
         except Exception as e:
             self.log(
-                "error",
-                "Unhandled error while processing message {} {}: {}".format(
-                    deliver.routing_key, conversation_id, e
+                ERROR,
+                "Unhandled error while processing message {} {}".format(
+                    deliver.routing_key, conversation_id
                 ),
+                str(e),
             )
             # retry once
             if not deliver.redelivered:
@@ -639,10 +642,9 @@ class Service(object):
             else:
                 # dead letter
                 self.log(
-                    "error",
-                    "Giving up on {} {}: {}".format(
-                        deliver.routing_key, conversation_id, e
-                    ),
+                    ERROR,
+                    "Giving up on {} {}".format(deliver.routing_key, conversation_id),
+                    str(e),
                 )
                 ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
@@ -742,18 +744,27 @@ class Service(object):
         """
         self.exclusive_queues = True
 
-    def log(self, criticity: str, message: str) -> None:
+    def log(self, criticity: int, short: str, full: str = "") -> None:
         """Log to the log bus.
 
-        Parameters are unicode strings.
+        Parameters are unicode strings, except for the `criticity` level,
+        which is an int in the syslog scale.
         """
         # no persistent messages, no delivery confirmations
+        log = {
+            "version": "1.1",
+            "short_message": short,
+            "full_message": full,
+            "level": criticity,
+            "host": "{}.{}".format(self.logical_service, self.ID),
+            "timestamp": time.time(),
+        }
         self._log_channel.basic_publish(
             exchange=self.LOG_EXCHANGE,
-            routing_key="{}.{}".format(self.logical_service, criticity),
-            body="[{}-{}] {}".format(self.logical_service, self.ID, message).encode(
-                "utf-8"
+            routing_key="{}.{}".format(
+                self.logical_service, CRITICITY_LABELS[criticity % 8]
             ),
+            body=json.dumps(log).encode("utf-8"),
         )
 
     def send_command(
@@ -877,7 +888,7 @@ class Service(object):
         self.should_reconnect = reconnect
         if not self._closing:
             if not self._connection.is_closed:
-                self.log("warning", "Shutting down…")
+                self.log(WARNING, "Shutting down…")
             self._closing = True
             LOGGER.info("Stopping")
             if self._consuming:
@@ -907,7 +918,7 @@ class Service(object):
         if handler is not None:
             handler(payload, conversation_id)
         else:
-            self.log("error", f"unexpected event {event}; check your subscriptions!")
+            self.log(ERROR, f"unexpected event {event}; check your subscriptions!")
 
     def handle_command(
         self,
@@ -933,9 +944,7 @@ class Service(object):
             handler(payload, conversation_id, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            self.log(
-                "error", f"unexpected command {command}; check your subscriptions!"
-            )
+            self.log(ERROR, f"unexpected command {command}; check your subscriptions!")
 
     def handle_result(
         self,
@@ -961,7 +970,7 @@ class Service(object):
             handler(payload, conversation_id, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            self.log("error", f"unexpected result {key}; check your subscriptions!")
+            self.log(ERROR, f"unexpected result {key}; check your subscriptions!")
 
     # Abstract methods
 
