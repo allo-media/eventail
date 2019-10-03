@@ -3,6 +3,7 @@ import sys
 
 import uvloop
 from async_service.aio import Service
+from async_service.log_criticity import INFO, NOTICE
 
 
 class EchoService(Service):
@@ -12,7 +13,7 @@ class EchoService(Service):
 
     async def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing key 'message' in message!"
-        await self.log("info", "Echoing {}".format(message))
+        await self.log(INFO, "Echoing {}".format(message))
         try:
             await self.return_success(
                 reply_to, message, conversation_id, correlation_id, mandatory=True
@@ -21,12 +22,12 @@ class EchoService(Service):
             await self.log("Error", f"Unroutable {reply_to}")
 
     async def on_ShutdownStarted(self, payload):
-        await self.log("info", "Received signal for shutdown.")
+        await self.log(INFO, "Received signal for shutdown.")
         await self.stop()
 
     async def healthcheck(self) -> None:
         while True:
-            await self.log("health", "I'm fine!")
+            await self.log(NOTICE, "I'm fine!")
             await asyncio.sleep(60)
 
     async def on_ready(self) -> None:

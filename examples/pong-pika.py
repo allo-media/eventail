@@ -2,6 +2,7 @@
 import sys
 
 from async_service.pika import Service, ReconnectingSupervisor
+from async_service.log_criticity import ERROR, INFO, NOTICE
 
 
 class EchoService(Service):
@@ -11,21 +12,21 @@ class EchoService(Service):
 
     def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing 'message' key!"
-        self.log("info", "Echoing {}".format(message))
+        self.log(INFO, "Echoing", "Sending back {}".format(message))
         self.return_success(reply_to, message, conversation_id, correlation_id)
 
     def on_ShutdownStarted(self, payload):
-        self.log("info", "Received signal for shutdown.")
+        self.log(INFO, "Received signal for shutdown.")
         self.stop()
 
     def handle_returned_message(self, key, message, envelope):
-        self.log("error", "unroutable {}.{}.{}".format(key, message, envelope))
+        self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
 
     def on_ready(self):
         self.healthcheck()
 
     def healthcheck(self):
-        self.log("health", "I'm fine!")
+        self.log(NOTICE, "I'm fine!")
         self.call_later(60, self.healthcheck)
 
 

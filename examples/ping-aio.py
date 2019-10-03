@@ -4,6 +4,7 @@ from random import choice
 
 import uvloop
 from async_service.aio import Service
+from async_service.log_criticity import DEBUG, ERROR, INFO, NOTICE
 
 MESSAGES = [
     "hello",
@@ -32,17 +33,17 @@ class Ping(Service):
     async def handle_result(
         self, key, message, conversation_id, status, correlation_id
     ):
-        await self.log("debug", f"Received {key} {status}")
+        await self.log(DEBUG, f"Received {key} {status}")
         if key == self.return_key:
             await self.log(
-                "info", f"Got echo {message} {conversation_id} {correlation_id}"
+                INFO, f"Got echo {message} {conversation_id} {correlation_id}"
             )
         else:
             # should never happen: means we misconfigured the routing keys
-            await self.log("error", f"Unexpected message {key} {status}")
+            await self.log(ERROR, f"Unexpected message {key} {status}")
 
     async def on_ShutdownStarted(self, payload):
-        await self.log("info", "Received signal for shutdown.")
+        await self.log(INFO, "Received signal for shutdown.")
         await self.stop()
 
     async def ping(self):
@@ -51,7 +52,7 @@ class Ping(Service):
             message = {"message": choice(MESSAGES)}
             conversation_id = correlation_id = "anyid" + str(i)
             await self.log(
-                "info", f"Sending {message} {conversation_id} {correlation_id}"
+                INFO, f"Sending {message} {conversation_id} {correlation_id}"
             )
             # Will raise ValueError if unroutable and we'll stop.
             await self.send_command(
@@ -66,7 +67,7 @@ class Ping(Service):
 
     async def healthcheck(self) -> None:
         while True:
-            await self.log("health", "I'm fine!")
+            await self.log(NOTICE, "I'm fine!")
             await asyncio.sleep(60)
 
     async def on_ready(self) -> None:

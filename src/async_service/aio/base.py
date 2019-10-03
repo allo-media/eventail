@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import signal
+import time
 from contextlib import asynccontextmanager
 from typing import (
     Any,
@@ -17,6 +18,7 @@ from typing import (
 import aiormq
 import cbor
 from aiormq import exceptions, types
+from async_service.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
 JSON_MODEL = Dict[str, Any]
 HEADER = Dict[str, str]
@@ -84,7 +86,7 @@ class Service:
         routing_key: str = message.delivery.routing_key
         exchange: str = message.delivery.exchange
         if headers is None or "conversation_id" not in headers:
-            self.log("error", f"Missing headers on {routing_key}")
+            self.log(ERROR, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             message.channel.basic_nack(message.delivery.delivery_tag, requeue=False)
             return
@@ -93,7 +95,7 @@ class Service:
             payload: JSON_MODEL = decoder.loads(message.body) if message.body else None
         except ValueError:
             await self.log(
-                "critical", "Unable to decode payload for {}".format(routing_key)
+                CRITICAL, "Unable to decode payload for {}".format(routing_key)
             )
             # Unrecoverable, put to dead letter
             await message.channel.basic_nack(
@@ -107,7 +109,7 @@ class Service:
             status = headers.get("status", "") if headers else ""
             if not (reply_to or status):
                 await self.log(
-                    "error",
+                    ERROR,
                     f"invalid enveloppe for command/result: {routing_key} {conversation_id}",
                 )
                 # Unrecoverable, put to dead letter
@@ -156,10 +158,11 @@ class Service:
             yield None
         except Exception as e:
             await self.log(
-                "error",
-                "Unhandled error while processing message {} {}: {}".format(
-                    deliver.routing_key, conversation_id, e
+                ERROR,
+                "Unhandled error while processing message {} {}".format(
+                    deliver.routing_key, conversation_id
                 ),
+                str(e),
             )
             # retry once
             if not deliver.redelivered:
@@ -167,14 +170,11 @@ class Service:
             else:
                 # dead letter
                 await self.log(
-                    "error",
-                    "Giving up on {} {}: {}".format(
-                        deliver.routing_key, conversation_id, e
-                    ),
+                    ERROR,
+                    "Giving up on {} {}".format(deliver.routing_key, conversation_id),
+                    str(e),
                 )
-                await ch.basic_nack(
-                    delivery_tag=deliver.delivery_tag, requeue=False
-                )
+                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
             await ch.basic_ack(delivery_tag=deliver.delivery_tag)
 
@@ -335,7 +335,7 @@ class Service:
         if not hasattr(self, "_connection") or self._connection.is_closed:
             self.stopped.set()
             return
-        await self.log("warning", "Shutting down…")
+        await self.log(WARNING, "Shutting down…")
         await self._channel.basic_cancel(self._event_consumer_tag)
         await self._channel.basic_cancel(self._command_consumer_tag)
         # wait for ongoing publishings?
@@ -344,20 +344,29 @@ class Service:
         await self._log_channel.close()
         await self._connection.close()
 
-    async def log(self, criticity: str, message: str) -> None:
+    async def log(self, criticity: int, short: str, full: str = "") -> None:
         """Log to the log bus.
 
-        Parameters are unicode strings.
+        Parameters are unicode strings, except for the `criticity` level,
+        which is an int in the syslog scale.
         """
         # no persistent messages, no delivery confirmations
 
         try:
+            log = {
+                "version": "1.1",
+                "short_message": short,
+                "full_message": full,
+                "level": criticity,
+                "host": "{}.{}".format(self.logical_service, self.ID),
+                "timestamp": time.time(),
+            }
             await self._log_channel.basic_publish(
-                "[{}-{}] {}".format(self.logical_service, self.ID, message).encode(
-                    "utf-8"
-                ),
                 exchange=self.LOG_EXCHANGE,
-                routing_key="{}.{}".format(self.logical_service, criticity),
+                routing_key="{}.{}".format(
+                    self.logical_service, CRITICITY_LABELS[criticity % 8]
+                ),
+                body=json.dumps(log).encode("utf-8"),
             )
         except RuntimeError as e:
             if "closed" not in e.args[0]:
@@ -481,7 +490,7 @@ class Service:
             await handler(payload, conversation_id)
         else:
             await self.log(
-                "error", f"unexpected event {event}; check your subscriptions!"
+                ERROR, f"unexpected event {event}; check your subscriptions!"
             )
 
     async def handle_command(
@@ -509,7 +518,7 @@ class Service:
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log(
-                "error", f"unexpected command {command}; check your subscriptions!"
+                ERROR, f"unexpected command {command}; check your subscriptions!"
             )
 
     async def handle_result(
@@ -536,9 +545,7 @@ class Service:
             await handler(payload, conversation_id, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            await self.log(
-                "error", f"unexpected result {key}; check your subscriptions!"
-            )
+            await self.log(ERROR, f"unexpected result {key}; check your subscriptions!")
 
     # Abstract methods
 
