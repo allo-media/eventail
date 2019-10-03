@@ -13,13 +13,15 @@ class EchoService(Service):
 
     async def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing key 'message' in message!"
-        await self.log(INFO, "Echoing {}".format(message))
+        await self.log(INFO, f"Echoing {message}", conversation_id=conversation_id)
         try:
             await self.return_success(
                 reply_to, message, conversation_id, correlation_id, mandatory=True
             )
         except ValueError:
-            await self.log("Error", f"Unroutable {reply_to}")
+            await self.log(
+                "Error", f"Unroutable {reply_to}", conversation_id=conversation_id
+            )
 
     async def on_ShutdownStarted(self, payload):
         await self.log(INFO, "Received signal for shutdown.")

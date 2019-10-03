@@ -33,15 +33,22 @@ class Ping(Service):
         self.ping()
 
     def handle_result(self, key, message, conversation_id, status, correlation_id):
-        self.log(INFO, "Received {} {}".format(key, status))
+        self.log(
+            INFO, "Received {} {}".format(key, status), conversation_id=conversation_id
+        )
         if key == self.return_key:
             self.log(
                 INFO,
-                "Got echo: {} {} {}".format(message, conversation_id, correlation_id),
+                "Got echo: {} {}".format(message, correlation_id),
+                conversation_id=conversation_id,
             )
         else:
             # should never happen: means we misconfigured the routing keys
-            self.log(ERROR, "Unexpected message {} {}".format(key, status))
+            self.log(
+                ERROR,
+                "Unexpected message {} {}".format(key, status),
+                conversation_id=conversation_id,
+            )
 
     def on_ShutdownStarted(self, payload):
         self.log(INFO, "Received signal for shutdown.")
@@ -53,8 +60,12 @@ class Ping(Service):
 
     def ping(self):
         message = {"message": choice(MESSAGES)}
-        self.log(INFO, "Sending: {} {}".format(message, self._message_number))
         conversation_id = correlation_id = "anyid" + str(self._message_number)
+        self.log(
+            INFO,
+            "Sending: {} {}".format(message, self._message_number),
+            conversation_id=conversation_id,
+        )
         self.send_command(
             "pong.EchoMessage",
             message,

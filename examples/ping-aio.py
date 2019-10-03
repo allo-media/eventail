@@ -33,14 +33,22 @@ class Ping(Service):
     async def handle_result(
         self, key, message, conversation_id, status, correlation_id
     ):
-        await self.log(DEBUG, f"Received {key} {status}")
+        await self.log(
+            DEBUG, f"Received {key} {status}", conversation_id=conversation_id
+        )
         if key == self.return_key:
             await self.log(
-                INFO, f"Got echo {message} {conversation_id} {correlation_id}"
+                INFO,
+                f"Got echo {message} {correlation_id}",
+                conversation_id=conversation_id,
             )
         else:
             # should never happen: means we misconfigured the routing keys
-            await self.log(ERROR, f"Unexpected message {key} {status}")
+            await self.log(
+                ERROR,
+                f"Unexpected message {key} {status}",
+                conversation_id=conversation_id,
+            )
 
     async def on_ShutdownStarted(self, payload):
         await self.log(INFO, "Received signal for shutdown.")
@@ -52,7 +60,9 @@ class Ping(Service):
             message = {"message": choice(MESSAGES)}
             conversation_id = correlation_id = "anyid" + str(i)
             await self.log(
-                INFO, f"Sending {message} {conversation_id} {correlation_id}"
+                INFO,
+                f"Sending {message} {correlation_id}",
+                conversation_id=conversation_id,
             )
             # Will raise ValueError if unroutable and we'll stop.
             await self.send_command(

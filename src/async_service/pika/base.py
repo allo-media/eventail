@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import signal
+import socket
 import time
 from contextlib import contextmanager
 from typing import (
@@ -55,6 +56,7 @@ class Service(object):
     """
 
     ID = os.getpid()
+    HOSTNAME = socket.gethostname()
     EVENT_EXCHANGE = "events"
     CMD_EXCHANGE = "commands"
     LOG_EXCHANGE = "logs"
@@ -538,6 +540,7 @@ class Service(object):
             self.log(
                 CRITICAL,
                 "in handle_returned_message [{}] {}".format(self.logical_service, e),
+                conversation_id=envelope.get("conversation_id", ""),
             )
             # Crash the service now
             self.stop()
@@ -578,7 +581,8 @@ class Service(object):
         except ValueError:
             self.log(
                 ERROR,
-                f"Unable to decode payload for {routing_key} {conversation_id}; dead lettering.",
+                f"Unable to decode payload for {routing_key}; dead lettering.",
+                conversation_id=conversation_id,
             )
             # Unrecoverable, put to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
@@ -595,6 +599,7 @@ class Service(object):
                     "invalid enveloppe for command/result: {}; dead lettering.".format(
                         headers
                     ),
+                    conversation_id=conversation_id,
                 )
                 # Unrecoverable. Put to dead letter
                 ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
@@ -631,10 +636,9 @@ class Service(object):
         except Exception as e:
             self.log(
                 ERROR,
-                "Unhandled error while processing message {} {}".format(
-                    deliver.routing_key, conversation_id
-                ),
+                f"Unhandled error while processing message {deliver.routing_key}",
                 str(e),
+                conversation_id=conversation_id,
             )
             # retry once
             if not deliver.redelivered:
@@ -643,8 +647,9 @@ class Service(object):
                 # dead letter
                 self.log(
                     ERROR,
-                    "Giving up on {} {}".format(deliver.routing_key, conversation_id),
+                    f"Giving up on {deliver.routing_key}",
                     str(e),
+                    conversation_id=conversation_id,
                 )
                 ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
         else:
@@ -744,7 +749,9 @@ class Service(object):
         """
         self.exclusive_queues = True
 
-    def log(self, criticity: int, short: str, full: str = "") -> None:
+    def log(
+        self, criticity: int, short: str, full: str = "", conversation_id: str = ""
+    ) -> None:
         """Log to the log bus.
 
         Parameters are unicode strings, except for the `criticity` level,
@@ -756,8 +763,11 @@ class Service(object):
             "short_message": short,
             "full_message": full,
             "level": criticity,
-            "host": "{}.{}".format(self.logical_service, self.ID),
+            "host": f"{self.logical_service}@{self.HOSTNAME}",
             "timestamp": time.time(),
+            "_conversation_id": conversation_id,
+            "_logical_service": self.logical_service,
+            "_worker_pid": self.ID,
         }
         self._log_channel.basic_publish(
             exchange=self.LOG_EXCHANGE,
@@ -918,7 +928,11 @@ class Service(object):
         if handler is not None:
             handler(payload, conversation_id)
         else:
-            self.log(ERROR, f"unexpected event {event}; check your subscriptions!")
+            self.log(
+                ERROR,
+                f"unexpected event {event}; check your subscriptions!",
+                conversation_id=conversation_id,
+            )
 
     def handle_command(
         self,
@@ -944,7 +958,11 @@ class Service(object):
             handler(payload, conversation_id, reply_to, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            self.log(ERROR, f"unexpected command {command}; check your subscriptions!")
+            self.log(
+                ERROR,
+                f"unexpected command {command}; check your subscriptions!",
+                conversation_id=conversation_id,
+            )
 
     def handle_result(
         self,
@@ -970,7 +988,11 @@ class Service(object):
             handler(payload, conversation_id, status, correlation_id)
         else:
             # should never happens: means we misconfigured the routing keys
-            self.log(ERROR, f"unexpected result {key}; check your subscriptions!")
+            self.log(
+                ERROR,
+                f"unexpected result {key}; check your subscriptions!",
+                conversation_id=conversation_id,
+            )
 
     # Abstract methods
 
