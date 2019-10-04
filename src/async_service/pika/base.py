@@ -758,11 +758,13 @@ class Service(object):
         which is an int in the syslog scale.
         """
         # no persistent messages, no delivery confirmations
+        level_name = CRITICITY_LABELS[criticity % 8]
         log = {
             "version": "1.1",
             "short_message": short,
             "full_message": full,
             "level": criticity,
+            "_levelname": level_name,
             "host": f"{self.logical_service}@{self.HOSTNAME}",
             "timestamp": time.time(),
             "_conversation_id": conversation_id,
@@ -771,9 +773,7 @@ class Service(object):
         }
         self._log_channel.basic_publish(
             exchange=self.LOG_EXCHANGE,
-            routing_key="{}.{}".format(
-                self.logical_service, CRITICITY_LABELS[criticity % 8]
-            ),
+            routing_key="{}.{}".format(self.logical_service, level_name),
             body=json.dumps(log).encode("utf-8"),
         )
 
