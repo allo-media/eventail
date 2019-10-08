@@ -31,8 +31,7 @@ import cbor
 import pika
 from async_service.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
-LOGGER = logging.getLogger(__name__)
-# LOGGER.setLevel(logging.DEBUG)
+LOGGER = logging.getLogger("async_service")
 
 
 JSON_MODEL = Dict[str, Any]
