@@ -4,6 +4,7 @@ import os
 import signal
 import socket
 import time
+import traceback
 from contextlib import asynccontextmanager
 from typing import (
     Any,
@@ -162,11 +163,12 @@ class Service:
     ) -> AsyncGenerator[None, None]:
         try:
             yield None
-        except Exception as e:
+        except Exception:
+            error = traceback.format_exc()
             await self.log(
                 ERROR,
                 f"Unhandled error while processing message {deliver.routing_key}",
-                str(e),
+                error,
                 conversation_id=conversation_id,
             )
             # retry once
@@ -177,7 +179,7 @@ class Service:
                 await self.log(
                     ERROR,
                     f"Giving up on {deliver.routing_key}",
-                    str(e),
+                    error,
                     conversation_id=conversation_id,
                 )
                 await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)

@@ -13,6 +13,7 @@ import os
 import signal
 import socket
 import time
+import traceback
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -633,11 +634,12 @@ class Service(object):
     ) -> Generator[None, None, None]:
         try:
             yield None
-        except Exception as e:
+        except Exception:
+            error = traceback.format_exc()
             self.log(
                 ERROR,
                 f"Unhandled error while processing message {deliver.routing_key}",
-                str(e),
+                error,
                 conversation_id=conversation_id,
             )
             # retry once
@@ -648,7 +650,7 @@ class Service(object):
                 self.log(
                     ERROR,
                     f"Giving up on {deliver.routing_key}",
-                    str(e),
+                    error,
                     conversation_id=conversation_id,
                 )
                 ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
@@ -771,6 +773,7 @@ class Service(object):
             "_logical_service": self.logical_service,
             "_worker_pid": self.ID,
         }
+        LOGGER.debug("Application logged: %s\n%s", short, full)
         self._log_channel.basic_publish(
             exchange=self.LOG_EXCHANGE,
             routing_key="{}.{}".format(self.logical_service, level_name),
