@@ -4,7 +4,7 @@ from random import choice
 
 import uvloop
 from py_eda_tools.async_service.aio import Service
-from py_eda_tools.async_service.log_criticity import DEBUG, ERROR, INFO, NOTICE
+from py_eda_tools.log_criticity import DEBUG, ERROR, INFO, NOTICE
 
 MESSAGES = [
     "hello",

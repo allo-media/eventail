@@ -3,7 +3,7 @@ import sys
 
 import uvloop
 from py_eda_tools.async_service.aio import Service
-from py_eda_tools.async_service.log_criticity import INFO, NOTICE
+from py_eda_tools.log_criticity import INFO, NOTICE
 
 
 class EchoService(Service):

@@ -2,7 +2,7 @@
 import sys
 
 from py_eda_tools.async_service.pika import Service, ReconnectingSupervisor
-from py_eda_tools.async_service.log_criticity import ERROR, INFO, NOTICE
+from py_eda_tools.log_criticity import ERROR, INFO, NOTICE
 
 
 class EchoService(Service):
