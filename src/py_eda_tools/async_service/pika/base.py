@@ -29,12 +29,7 @@ from typing import (
 
 import cbor
 import pika
-from py_eda_tools.async_service.log_criticity import (
-    CRITICAL,
-    CRITICITY_LABELS,
-    ERROR,
-    WARNING,
-)
+from py_eda_tools.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
 LOGGER = logging.getLogger("async_service")
 

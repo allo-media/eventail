@@ -20,12 +20,7 @@ from typing import (
 import aiormq
 import cbor
 from aiormq import exceptions, types
-from py_eda_tools.async_service.log_criticity import (
-    CRITICAL,
-    CRITICITY_LABELS,
-    ERROR,
-    WARNING,
-)
+from py_eda_tools.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
 JSON_MODEL = Dict[str, Any]
 HEADER = Dict[str, str]
