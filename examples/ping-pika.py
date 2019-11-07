@@ -2,8 +2,8 @@
 import sys
 from random import choice
 
-from async_service.pika import Service, ReconnectingSupervisor
-from async_service.log_criticity import CRITICAL, ERROR, INFO, NOTICE
+from py_eda_tools.async_service.pika import Service, ReconnectingSupervisor
+from py_eda_tools.async_service.log_criticity import CRITICAL, ERROR, INFO, NOTICE
 
 MESSAGES = [
     "hello",

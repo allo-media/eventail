@@ -4,8 +4,8 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(
-    name='async_service',
-    version='0.12',
+    name='py_eda_tools',
+    version='1.0.0',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -19,7 +19,8 @@ setup(
     scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py"],
     install_requires=[
         'pika',
-        'cbor'
+        'cbor',
+        'kombu'
     ],
     extras_require={
         'asyncio':  ["aiormq", "uvloop"],

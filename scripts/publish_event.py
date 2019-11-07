@@ -8,7 +8,7 @@ import time
 import cbor
 import pika
 
-from async_service.pika import Service
+from py_eda_tools.async_service.pika import Service
 
 
 class EventSender(Service):

@@ -7,7 +7,7 @@ import os.path
 
 import cbor
 
-from async_service.pika import Service
+from py_eda_tools.async_service.pika import Service
 
 
 JSON_MODEL = Dict[str, Any]

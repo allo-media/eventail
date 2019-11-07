@@ -2,8 +2,8 @@ import asyncio
 import sys
 
 import uvloop
-from async_service.aio import Service
-from async_service.log_criticity import INFO, NOTICE
+from py_eda_tools.async_service.aio import Service
+from py_eda_tools.async_service.log_criticity import INFO, NOTICE
 
 
 class EchoService(Service):
