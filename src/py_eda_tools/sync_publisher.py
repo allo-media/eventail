@@ -101,7 +101,7 @@ class Endpoint:
                 retry=True,
                 retry_policy={
                     "interval_start": 0,  # First retry immediately,
-                    "interval_step": 2,  # then increase by 2s for every retry.
+                    "interval_step": 1,  # then increase by 2s for every retry.
                     "interval_max": 30,  # but don't exceed 30s between retries.
                 },
             )
