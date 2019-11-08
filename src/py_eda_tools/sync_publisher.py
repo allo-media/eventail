@@ -31,6 +31,12 @@ class Endpoint:
     LOG_EXCHANGE_TYPE = "topic"
 
     def __init__(self, amqp_urls: List[str], logical_service: str) -> None:
+        """Initialize endpoint.
+
+        * ``amqp_urls`` is a list of broker urls that will be tried in turn (round robin style) to send messages.
+        * ``logical_service``: the logical service this endpoint belongs to.
+        """
+
         self.logical_service = logical_service
 
         self._connection = Connection(

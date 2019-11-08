@@ -18,12 +18,12 @@ setup(
     include_package_data=True,
     scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py"],
     install_requires=[
-        'pika',
-        'cbor',
-        'kombu'
+        "pika",
+        "cbor",
     ],
     extras_require={
         'asyncio':  ["aiormq", "uvloop"],
+        'synchronous': ["kombu"]
     },
     python_requires='>=3.7',
 )
