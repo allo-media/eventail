@@ -50,7 +50,7 @@ class Ping(Service):
                 conversation_id=conversation_id,
             )
 
-    def on_ShutdownStarted(self, payload):
+    def on_ShutdownStarted(self, payload, conversation_id):
         self.log(INFO, "Received signal for shutdown.")
         self.stop()
 
