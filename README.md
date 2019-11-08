@@ -18,7 +18,7 @@ You just need to focus on the service logic you develop and then you can deploy 
 
 ### py_eda_tools.sync_publisher
 
-A kombu based synchronous Endpoint for publishing purposes only (events and logs) . This is provided to help you port legacy applications to the EDA.
+A kombu based synchronous Endpoint for publishing purposes only (events and logs). This is provided to help you port legacy applications to the EDA.
 
 ### Command line utilities
 
