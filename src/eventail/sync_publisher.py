@@ -13,7 +13,7 @@ from kombu import Connection, Exchange
 from kombu.pools import producers
 
 
-from py_eda_tools.log_criticity import CRITICITY_LABELS
+from eventail.log_criticity import CRITICITY_LABELS
 
 
 JSON_MODEL = Dict[str, Any]
@@ -48,6 +48,11 @@ class Endpoint:
         self.log_exchange = Exchange(
             self.LOG_EXCHANGE, self.LOG_EXCHANGE_TYPE, durable=True
         )
+        self._force_json = False
+
+    def force_json(self):
+        """Force serialization of payload into JSON."""
+        self._force_json = True
 
     def log(
         self, criticity: int, short: str, full: str = "", conversation_id: str = ""
@@ -96,14 +101,15 @@ class Endpoint:
         with producers[self._connection].acquire(block=True) as producer:
             headers = {"conversation_id": str(conversation_id)}
             producer.publish(
-                cbor.dumps(message),
+                message if self._force_json else cbor.dumps(message),
                 delivery_mode=2,  # persistent
                 exchange=self.event_exchange,
                 routing_key=event,
                 declare=[self.event_exchange],
                 headers=headers,
-                content_type="application/cbor",
-                content_encoding="binary",
+                content_type=None if self._force_json else "application/cbor",
+                content_encoding=None if self._force_json else "binary",
+                serializer="json" if self._force_json else None,
                 retry=True,
                 retry_policy={
                     "interval_start": 0,  # First retry immediately,

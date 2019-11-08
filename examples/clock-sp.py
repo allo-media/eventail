@@ -1,7 +1,7 @@
 import sys
 import time
 
-from py_eda_tools.sync_publisher import Endpoint
+from eventail.sync_publisher import Endpoint
 
 
 if __name__ == "__main__":

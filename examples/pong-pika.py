@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import sys
 
-from py_eda_tools.async_service.pika import Service, ReconnectingSupervisor
-from py_eda_tools.log_criticity import ERROR, INFO, NOTICE
+from eventail.async_service.pika import Service, ReconnectingSupervisor
+from eventail.log_criticity import ERROR, INFO, NOTICE
 
 
 class EchoService(Service):

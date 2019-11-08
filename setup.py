@@ -4,7 +4,7 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(
-    name='py_eda_tools',
+    name='eventail',
     version='1.0.0',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',

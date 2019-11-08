@@ -3,7 +3,7 @@ from typing import Any, Dict
 import argparse
 import pprint
 
-from py_eda_tools.async_service.pika import Service
+from eventail.async_service.pika import Service
 
 
 JSON_MODEL = Dict[str, Any]
