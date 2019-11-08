@@ -7,7 +7,7 @@ The Allo-Media event-driven service architecture is language and framework indep
 * [Conceptual design](https://hackmd.allo-media.net/5v-gV6uGSoOV-C-bogH0NA)
 * [Concrete design on RabbitMQ](https://hackmd.allo-media.net/V8sTyOUQRLqaSsMVW7qJ1g)
 
-### py_eda_tools.async_service
+### eventail.async_service
 
 This package provides base classes for implementating fully asynchronous services conforming to this architecture on RabbitMQ.
 To develop a service, just inherit one of the class (either `async_service.pika.Service` or `async_service.aio.Service` if you want async/await) and provide a concrete implementation of the abstract methods to code the specific behavior of your service.
@@ -16,7 +16,7 @@ All the burden of communication, message safety, recovery, availability, load ba
 
 You just need to focus on the service logic you develop and then you can deploy as many instances of your service as you see fit, anywhere on the AM network, and the load will be automatically load-balanced between them.
 
-### py_eda_tools.sync_publisher
+### eventail.sync_publisher
 
 A kombu based synchronous Endpoint for publishing purposes only (events and logs). This is provided to help you port legacy applications to the EDA.
 

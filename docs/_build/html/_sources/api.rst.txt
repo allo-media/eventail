@@ -36,4 +36,4 @@ Depends on the kombu library::
 
 
 .. autoclass:: py_eda_tools.sync_publisher.Endpoint
-    :members: __init__, publish_event, log
+    :members: __init__, publish_event, log, force_json
