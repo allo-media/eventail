@@ -29,7 +29,7 @@ from typing import (
 
 import cbor
 import pika
-from async_service.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
+from eventail.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
 
 LOGGER = logging.getLogger("async_service")
 
@@ -187,11 +187,7 @@ class Service(object):
         if self._closing:
             self._connection.ioloop.stop()
         else:
-            LOGGER.warning("Connection closed, for reason: %s", reason)
-            if getattr(reason, "reply_code", -1) == 320:
-                self.reconnect(True)
-            else:
-                self.reconnect(False)
+            self.reconnect(True)
 
     def reconnect(self, should_reconnect=True) -> None:
         """Will be invoked if the connection can't be opened or is

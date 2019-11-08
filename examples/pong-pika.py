@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import sys
 
-from async_service.pika import Service, ReconnectingSupervisor
-from async_service.log_criticity import ERROR, INFO, NOTICE
+from eventail.async_service.pika import Service, ReconnectingSupervisor
+from eventail.log_criticity import ERROR, INFO, NOTICE
 
 
 class EchoService(Service):
@@ -20,7 +20,7 @@ class EchoService(Service):
         )
         self.return_success(reply_to, message, conversation_id, correlation_id)
 
-    def on_ShutdownStarted(self, payload):
+    def on_ShutdownStarted(self, payload, conversation_id):
         self.log(INFO, "Received signal for shutdown.")
         self.stop()
 

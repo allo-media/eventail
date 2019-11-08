@@ -3,8 +3,8 @@ import sys
 from random import choice
 
 import uvloop
-from async_service.aio import Service
-from async_service.log_criticity import DEBUG, ERROR, INFO, NOTICE
+from eventail.async_service.aio import Service
+from eventail.log_criticity import DEBUG, ERROR, INFO, NOTICE
 
 MESSAGES = [
     "hello",
@@ -50,7 +50,7 @@ class Ping(Service):
                 conversation_id=conversation_id,
             )
 
-    async def on_ShutdownStarted(self, payload):
+    async def on_ShutdownStarted(self, payload, conversation_id):
         await self.log(INFO, "Received signal for shutdown.")
         await self.stop()
 
