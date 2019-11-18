@@ -29,7 +29,7 @@ from typing import (
 
 import cbor
 import pika
-from eventail.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
+from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
 
 LOGGER = logging.getLogger("async_service")
 
@@ -534,7 +534,7 @@ class Service(object):
         except Exception as e:
             # unexpected error
             self.log(
-                CRITICAL,
+                EMERGENCY,
                 "in handle_returned_message [{}] {}".format(self.logical_service, e),
                 conversation_id=envelope.get("conversation_id", ""),
             )
@@ -566,7 +566,7 @@ class Service(object):
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
         if headers is None or "conversation_id" not in headers:
-            self.log(ERROR, f"Missing headers on {routing_key}")
+            self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
             return
@@ -576,7 +576,7 @@ class Service(object):
             payload: JSON_MODEL = decoder.loads(body) if body else None
         except ValueError:
             self.log(
-                ERROR,
+                EMERGENCY,
                 f"Unable to decode payload for {routing_key}; dead lettering.",
                 conversation_id=conversation_id,
             )
@@ -591,7 +591,7 @@ class Service(object):
             status = headers.get("status", "") if headers else ""
             if not (reply_to or status):
                 self.log(
-                    ERROR,
+                    EMERGENCY,
                     "invalid enveloppe for command/result: {}; dead lettering.".format(
                         headers
                     ),
@@ -632,7 +632,7 @@ class Service(object):
         except Exception:
             error = traceback.format_exc()
             self.log(
-                ERROR,
+                ALERT,
                 f"Unhandled error while processing message {deliver.routing_key}",
                 error,
                 conversation_id=conversation_id,
@@ -643,7 +643,7 @@ class Service(object):
             else:
                 # dead letter
                 self.log(
-                    ERROR,
+                    EMERGENCY,
                     f"Giving up on {deliver.routing_key}",
                     error,
                     conversation_id=conversation_id,

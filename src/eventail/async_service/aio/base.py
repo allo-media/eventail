@@ -20,7 +20,7 @@ from typing import (
 import aiormq
 import cbor
 from aiormq import exceptions, types
-from eventail.log_criticity import CRITICAL, CRITICITY_LABELS, ERROR, WARNING
+from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
 
 JSON_MODEL = Dict[str, Any]
 HEADER = Dict[str, str]
@@ -89,7 +89,7 @@ class Service:
         routing_key: str = message.delivery.routing_key
         exchange: str = message.delivery.exchange
         if headers is None or "conversation_id" not in headers:
-            self.log(ERROR, f"Missing headers on {routing_key}")
+            self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             message.channel.basic_nack(message.delivery.delivery_tag, requeue=False)
             return
@@ -99,7 +99,7 @@ class Service:
             payload: JSON_MODEL = decoder.loads(message.body) if message.body else None
         except ValueError:
             await self.log(
-                CRITICAL,
+                EMERGENCY,
                 "Unable to decode payload for {}".format(routing_key),
                 conversation_id=conversation_id,
             )
@@ -115,7 +115,7 @@ class Service:
             status = headers.get("status", b"").decode("ascii") if headers else ""
             if not (reply_to or status):
                 await self.log(
-                    ERROR,
+                    EMERGENCY,
                     f"invalid enveloppe for command/result: {routing_key}",
                     conversation_id=conversation_id,
                 )
@@ -166,7 +166,7 @@ class Service:
         except Exception:
             error = traceback.format_exc()
             await self.log(
-                ERROR,
+                ALERT,
                 f"Unhandled error while processing message {deliver.routing_key}",
                 error,
                 conversation_id=conversation_id,
@@ -177,7 +177,7 @@ class Service:
             else:
                 # dead letter
                 await self.log(
-                    ERROR,
+                    EMERGENCY,
                     f"Giving up on {deliver.routing_key}",
                     error,
                     conversation_id=conversation_id,
