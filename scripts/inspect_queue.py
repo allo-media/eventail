@@ -15,9 +15,10 @@ from pika.exceptions import (
 
 
 class Inspector:
-    def __init__(self, host, queue, count=0):
+    def __init__(self, host, queue, count=0, save=False):
         connection = pika.BlockingConnection(pika.URLParameters(host))
         channel = connection.channel()
+        self.save = save
 
         result = channel.queue_declare(queue, passive=True)
         queue_name = result.method.queue
@@ -40,6 +41,17 @@ class Inspector:
         pprint.pprint(method)
         print()
         pprint.pprint(decode(body))
+        if self.save:
+            with open(
+                properties.headers["conversation_id"]
+                + (
+                    ".json"
+                    if properties.content_type == "application/json"
+                    else ".cbor"
+                ),
+                "wb",
+            ) as payload:
+                payload.write(body)
         print("-----------")
         self._seen += 1
         if self._seen == self._count:
@@ -75,6 +87,9 @@ if __name__ == "__main__":
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--save", action="store_true", help="save payloads in original format."
+    )
     # parser.add_argument(
     #     "--filter",
     #     help="Log patterns to subscribe to (default to all)",
@@ -85,6 +100,6 @@ if __name__ == "__main__":
     expected_stop = False
     print("Ctrl-C to quit.")
     print("Dumping queue:", args.queue)
-    inspector = Inspector(args.amqp_url, args.queue, args.count)
+    inspector = Inspector(args.amqp_url, args.queue, args.count, args.save)
     inspector.run()
     print("bye!")

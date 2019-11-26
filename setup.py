@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='eventail',
-    version='1.0.2',
+    version='1.0.3',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -16,7 +16,8 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
-    scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py"],
+    scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py",
+             "scripts/inspect_queue.py", "scripts/resurrect.py"],
     install_requires=[
         "pika",
         "cbor",
