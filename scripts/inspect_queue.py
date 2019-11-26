@@ -88,7 +88,7 @@ if __name__ == "__main__":
         default=0,
     )
     parser.add_argument(
-        "--save", action="store_true", help="save payloads in orginal format."
+        "--save", action="store_true", help="save payloads in original format."
     )
     # parser.add_argument(
     #     "--filter",
