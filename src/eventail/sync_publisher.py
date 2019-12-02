@@ -10,7 +10,7 @@ import time
 
 import cbor
 from kombu import Connection, Exchange
-from kombu.pools import producers
+from kombu.pools import producers, set_limit
 
 
 from eventail.log_criticity import CRITICITY_LABELS
@@ -18,6 +18,7 @@ from eventail.log_criticity import CRITICITY_LABELS
 
 JSON_MODEL = Dict[str, Any]
 LOGGER = logging.getLogger("sync_endpoint")
+set_limit(2)  # two connections are more than enought; `async_service` uses just one.
 
 
 class Endpoint:
