@@ -35,8 +35,44 @@ jobs:
             . venv/bin/activate
             tox
 
+  deploy:
+    docker:
+      - image: circleci/python:3.7
+
+    working_directory: ~/eventail
+
+    steps:
+      - checkout
+
+      - run:
+          name: init .pypirc
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = allomedia" >> ~/.pypirc
+            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
+
+      - run:
+          name: create packages
+          command: |
+            python setup.py sdist
+
+      - run:
+          name: upload to pypi
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install twine
+            twine upload dist/*
+
+
 workflows:
   version: 2
   build_test:
     jobs:
       - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: release
