@@ -458,7 +458,7 @@ class Service(object):
                 )
         for i in confirm_range:
             del self._deliveries[i]
-        self._last_confirm = delivery_tag
+        self._last_confirm = max(self._last_confirm, delivery_tag)
         LOGGER.info(
             "Published %i messages, %i have yet to be confirmed, "
             "%i were acked and %i were nacked",
