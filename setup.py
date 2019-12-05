@@ -12,7 +12,15 @@ setup(
     description='A base class and utilities for AM service architecture',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license='Proprietary',
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.7",
+        "Intended Audience :: Developers",
+        "Operating System :: POSIX :: Linux",
+        "Topic :: Software Development",
+    ],
+    license='MIT',
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
@@ -24,7 +32,8 @@ setup(
     ],
     extras_require={
         'asyncio':  ["aiormq", "uvloop"],
-        'synchronous': ["kombu"]
+        'synchronous': ["kombu"],
+        'test': ["tox"]
     },
     python_requires='>=3.7',
 )
