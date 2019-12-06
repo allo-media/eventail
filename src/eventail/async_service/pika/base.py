@@ -42,7 +42,6 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    Iterable,
     List,
     Optional,
     Sequence,
@@ -138,7 +137,6 @@ class Service(object):
         self._deliveries: Dict[
             int, Tuple[str, str, JSON_MODEL, str, bool, Optional[HEADER]]
         ] = {}
-        self._last_confirm = 0
         self._acked = 0
         self._nacked = 0
         self._message_number = 0
@@ -441,12 +439,14 @@ class Service(object):
         delivery_tag: int = method_frame.method.delivery_tag
         multiple: bool = method_frame.method.multiple
         LOGGER.info("Received %s for delivery tag: %i", confirmation_type, delivery_tag)
-        num_confirms = (delivery_tag - self._last_confirm) if multiple else 1
-        confirm_range: Iterable
+        confirm_range: List[int]
         if multiple:
-            confirm_range = range(self._last_confirm + 1, delivery_tag + 1)
+            confirm_range = [
+                i for i in sorted(self._deliveries.keys()) if i <= delivery_tag
+            ]
         else:
-            confirm_range = (delivery_tag,)
+            confirm_range = [delivery_tag]
+        num_confirms = len(confirm_range)
         if confirmation_type == "ack":
             self._acked += num_confirms
         elif confirmation_type == "nack":
@@ -458,7 +458,6 @@ class Service(object):
                 )
         for i in confirm_range:
             del self._deliveries[i]
-        self._last_confirm = max(self._last_confirm, delivery_tag)
         LOGGER.info(
             "Published %i messages, %i have yet to be confirmed, "
             "%i were acked and %i were nacked",
