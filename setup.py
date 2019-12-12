@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='eventail',
-    version='1.0.7',
+    version='1.1.0',
     url='https://github.com/allo-media/async-service',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -29,6 +29,7 @@ setup(
     install_requires=[
         "pika",
         "cbor",
+        "redis"
     ],
     extras_require={
         'asyncio':  ["aiormq", "uvloop"],
