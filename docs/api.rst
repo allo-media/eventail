@@ -37,3 +37,11 @@ Depends on the kombu library::
 
 .. autoclass:: eventail.sync_publisher.Endpoint
     :members: __init__, publish_event, log, force_json
+
+
+Shared temporary data store
+---------------------------
+
+
+.. autoclass:: eventail.tmp_store.STDataStore
+    :members: simple_redis_backend, sentinel_backend, is_down, set, mset, pop, mpop, peek

@@ -29,6 +29,7 @@ setup(
     install_requires=[
         "pika",
         "cbor",
+        "redis"
     ],
     extras_require={
         'asyncio':  ["aiormq", "uvloop"],

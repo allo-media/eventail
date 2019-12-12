@@ -10,6 +10,8 @@ Welcome to async-service's documentation!
 
 ``sync_publisher`` offers an endpoint class for synchronous publishing of events and logs in legacy applications.
 
+``tmp_store`` offers a temporary data store shared among instances (and if needed, cross services).
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
