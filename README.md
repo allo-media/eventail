@@ -1,4 +1,4 @@
-![CircleCI](https://circleci.com/gh/allo-media/eventail.svg?style=svg)](https://circleci.com/gh/allo-media/eventail)
+![CircleCI](https://img.shields.io/circleci/build/github/allo-media/eventail)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/eventail)
 ![PyPI - License](https://img.shields.io/pypi/l/eventail)
 
