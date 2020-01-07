@@ -17,12 +17,12 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'async-service'
+project = 'Eventail'
 copyright = '2019, AlloMedia'
 author = 'AlloMedia'
 
 # The full version, including alpha/beta/rc tags
-release = '0.6'
+release = '1.1.0'
 master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
