@@ -41,7 +41,7 @@ from eventail.log_criticity import CRITICITY_LABELS
 
 JSON_MODEL = Dict[str, Any]
 LOGGER = logging.getLogger("sync_endpoint")
-set_limit(2)  # two connections are more than enought; `async_service` uses just one.
+set_limit(2)  # two connections are more than enough; `async_service` uses just one.
 
 
 class Endpoint:

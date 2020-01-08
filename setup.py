@@ -5,8 +5,8 @@ with open('README.md', 'r') as f:
 
 setup(
     name='eventail',
-    version='1.1.0',
-    url='https://github.com/allo-media/async-service',
+    version='1.2.0',
+    url='https://github.com/allo-media/eventail',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
     description='A base class and utilities for AM service architecture',
@@ -32,7 +32,7 @@ setup(
         "redis"
     ],
     extras_require={
-        'asyncio':  ["aiormq", "uvloop"],
+        'asyncio': ["aiormq", "uvloop"],
         'synchronous': ["kombu"],
         'test': ["tox"]
     },
