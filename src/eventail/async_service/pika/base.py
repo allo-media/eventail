@@ -85,8 +85,15 @@ class Service(object):
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
     RETRY_DELAY = 15  # in seconds
-    # In production, experiment with higher prefetch values
-    # for higher consumer throughput
+    #: Heartbeat interval, must be superior the the expected blocking processing time (in seconds).
+    #: Beware that the actual delay is negotiated with the broker, and the lower value is taken, so
+    #: configure Rabbitmq accordingly.
+    HEARTBEAT = 60
+    #: When rabbitmq is low on resources, it may temporaly block the connection.
+    #: We can specify a timeout if it is not acceptable to the service (in seconds)
+    BLOCKED_TIMEOUT = 3600
+    #: In production, experiment with higher prefetch values
+    #: for higher consumer throughput
     PREFETCH_COUNT = 3
 
     def __init__(
@@ -153,11 +160,15 @@ class Service(object):
         url = self._urls[self.url_idx]
         self.url_idx = (self.url_idx + 1) % len(self._urls)
         LOGGER.info("Connecting to %s", url)
+        connection_params = pika.URLParameters(url)
+        connection_params.heartbeat = self.HEARTBEAT
+        connection_params.blocked_connection_timeout = self.BLOCKED_TIMEOUT
+
         return pika.SelectConnection(
-            parameters=pika.URLParameters(url),
+            parameters=connection_params,
             on_open_callback=self.on_connection_open,
             on_open_error_callback=self.on_connection_open_error,
-            on_close_callback=self.on_connection_closed,
+            on_close_callback=self.on_connection_closed
         )
 
     def close_connection(self) -> None:

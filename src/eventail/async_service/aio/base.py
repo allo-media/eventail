@@ -60,8 +60,12 @@ class Service:
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
     RETRY_DELAY = 5  # in seconds
-    # In production, experiment with higher prefetch values
-    # for higher consumer throughput
+    #: Heartbeat interval, must be superior the the expected blocking processing time (in seconds).
+    #: Beware that the actual delay is negotiated with the broker, and the lower value is taken, so
+    #: configure Rabbitmq accordingly.
+    HEARTBEAT = 60
+    #: In production, experiment with higher prefetch values
+    #: for higher consumer throughput
     PREFETCH_COUNT = 3
 
     def __init__(
@@ -267,9 +271,10 @@ class Service:
         # Perform connection
         connected = False
         url_idx = 0
+        hb_query = "?heartbeat={}".format(self.HEARTBEAT)
         while not (connected or self.stopped.is_set()):
             try:
-                connection = await aiormq.connect(self._urls[url_idx], loop=self.loop)
+                connection = await aiormq.connect(self._urls[url_idx] + hb_query, loop=self.loop)
             except ConnectionError as e:
                 if e.errno == 111:
                     await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
@@ -371,8 +376,6 @@ class Service:
         await self._channel.basic_cancel(self._command_consumer_tag)
         # wait for ongoing publishings?
         await asyncio.sleep(3, loop=self.loop)
-        await self._channel.close()
-        await self._log_channel.close()
         await self._connection.close()
 
     async def log(
