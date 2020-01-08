@@ -85,11 +85,11 @@ class Service(object):
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
     RETRY_DELAY = 15  # in seconds
-    #: Heartbeat interval, must be superior the the expected blocking processing time (in seconds).
+    #: Heartbeat interval, must be superior to the expected blocking processing time (in seconds).
     #: Beware that the actual delay is negotiated with the broker, and the lower value is taken, so
     #: configure Rabbitmq accordingly.
     HEARTBEAT = 60
-    #: When rabbitmq is low on resources, it may temporaly block the connection.
+    #: When rabbitmq is low on resources, it may temporarily block the connection.
     #: We can specify a timeout if it is not acceptable to the service (in seconds)
     BLOCKED_TIMEOUT = 3600
     #: In production, experiment with higher prefetch values

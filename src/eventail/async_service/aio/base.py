@@ -39,6 +39,7 @@ from typing import (
     Optional,
     Sequence,
 )
+from urllib.parse import urlencode
 
 import aiormq
 import cbor
@@ -60,7 +61,7 @@ class Service:
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
     RETRY_DELAY = 5  # in seconds
-    #: Heartbeat interval, must be superior the the expected blocking processing time (in seconds).
+    #: Heartbeat interval, must be superior to the expected blocking processing time (in seconds).
     #: Beware that the actual delay is negotiated with the broker, and the lower value is taken, so
     #: configure Rabbitmq accordingly.
     HEARTBEAT = 60
@@ -271,7 +272,7 @@ class Service:
         # Perform connection
         connected = False
         url_idx = 0
-        hb_query = "?heartbeat={}".format(self.HEARTBEAT)
+        hb_query = "?{}".format(urlencode({"heartbeat": self.HEARTBEAT}))
         while not (connected or self.stopped.is_set()):
             try:
                 connection = await aiormq.connect(self._urls[url_idx] + hb_query, loop=self.loop)
