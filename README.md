@@ -72,9 +72,7 @@ optional arguments:
 ```
 
 ```
-monitor.py --help
-usage: monitor.py [-h] [--events [EVENTS [EVENTS ...]]]
-                  [--commands [COMMANDS [COMMANDS ...]]]
+usage: monitor.py [-h] [--events [EVENTS [EVENTS ...]]] [--commands [COMMANDS [COMMANDS ...]]] [--save]
                   amqp_url
 
 Monitor selected Events and/or Commands on the given broker
@@ -88,6 +86,8 @@ optional arguments:
                         Event patterns to subscribe to (default to all)
   --commands [COMMANDS [COMMANDS ...]]
                         Command patterns to subscribe to (default to all)
+  --save                save payloads in CBOR format.
+
 ```
 
 ```
@@ -124,7 +124,7 @@ optional arguments:
 
 ```
 inspect_queue.py --help
-usage: inspect_queue.py [-h] [--count COUNT] amqp_url queue
+usage: inspect_queue.py [-h] [--count COUNT] [--save] amqp_url queue
 
 Dump the content of a queue without consuming it.
 
@@ -135,7 +135,8 @@ positional arguments:
 optional arguments:
   -h, --help     show this help message and exit
   --count COUNT  Number of message to dump (default is 0 = all).
-  ```
+  --save         save payloads in original format.
+```
 
 ```
 resurrect.py --help
