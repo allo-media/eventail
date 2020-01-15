@@ -275,7 +275,9 @@ class Service:
         hb_query = "?{}".format(urlencode({"heartbeat": self.HEARTBEAT}))
         while not (connected or self.stopped.is_set()):
             try:
-                connection = await aiormq.connect(self._urls[url_idx] + hb_query, loop=self.loop)
+                connection = await aiormq.connect(
+                    self._urls[url_idx] + hb_query, loop=self.loop
+                )
             except ConnectionError as e:
                 if e.errno == 111:
                     await asyncio.sleep(self.RETRY_DELAY, loop=self.loop)
