@@ -26,6 +26,7 @@ from typing import Any, Dict
 import argparse
 import pprint
 
+import cbor
 from eventail.async_service.pika import Service
 
 
@@ -33,6 +34,20 @@ JSON_MODEL = Dict[str, Any]
 
 
 class Monitor(Service):
+    def __init__(self, save, *args):
+        self.save = save
+        super().__init__(*args)
+
+    def dump(self, key, conversation_id, payload):
+        if self.save:
+            filename = f"{key}.{conversation_id}.cbor"
+            with open(filename, "wb") as output:
+                cbor.dump(payload, output)
+            print("Payload saved as", filename)
+        else:
+            print("Payload:")
+            pprint.pprint(payload)
+
     def handle_result(
         self,
         key: str,
@@ -45,8 +60,7 @@ class Monitor(Service):
         print("conversation ID:", conversation_id)
         print("Correlation ID:", correlation_id)
         print("Status", status)
-        print("Payload:")
-        pprint.pprint(payload)
+        self.dump(key + "-result", conversation_id, payload)
         print("---------")
         print()
 
@@ -62,8 +76,7 @@ class Monitor(Service):
         print("conversation ID:", conversation_id)
         print("Correlation ID", correlation_id)
         print("Return to", reply_to)
-        print("Payload:")
-        pprint.pprint(payload)
+        self.dump(command, conversation_id, payload)
         print("---------")
         print()
 
@@ -72,8 +85,7 @@ class Monitor(Service):
     ) -> None:
         print("Got an Event", event)
         print("conversation ID:", conversation_id)
-        print("Payload:")
-        pprint.pprint(payload)
+        self.dump(event, conversation_id, payload)
         print("---------")
         print()
 
@@ -100,8 +112,13 @@ if __name__ == "__main__":
         nargs="*",
         default=["#"],
     )
+    parser.add_argument(
+        "--save", action="store_true", help="save payloads in CBOR format."
+    )
     args = parser.parse_args()
-    monitor = Monitor([args.amqp_url], args.events, args.commands, "debug_monitor")
+    monitor = Monitor(
+        args.save, [args.amqp_url], args.events, args.commands, "debug_monitor"
+    )
     monitor.use_exclusive_queues()
     print("Subscribing to events:", args.events)
     print("Subscribing to commands:", args.commands)

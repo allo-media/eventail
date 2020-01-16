@@ -63,7 +63,6 @@ class Inspector:
         pprint.pprint(properties)
         pprint.pprint(method)
         print()
-        pprint.pprint(decode(body))
         if self.save:
             with open(
                 properties.headers["conversation_id"]
@@ -75,6 +74,8 @@ class Inspector:
                 "wb",
             ) as payload:
                 payload.write(body)
+        else:
+            pprint.pprint(decode(body))
         print("-----------")
         self._seen += 1
         if self._seen == self._count:
