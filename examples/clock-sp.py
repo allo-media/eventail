@@ -28,6 +28,7 @@ from eventail.sync_publisher import Endpoint
 
 
 if __name__ == "__main__":
+    assert len(sys.argv) > 1, "Usage: clock-sp amqp-url [amqp-url…]"
     amqp_urls = sys.argv[1:]
     print("Starting…")
     api = Endpoint(amqp_urls, "clock")
