@@ -49,7 +49,7 @@ class Ping(Service):
 
     def __init__(self, host, logical_service):
         self.return_key = logical_service + ".EchoMessage"
-        super().__init__(host, ["ShutdownStarted"], [self.return_key], logical_service)
+        super().__init__(host, [], [self.return_key], logical_service)
 
     def on_ready(self):
         self.healthcheck()
@@ -72,10 +72,6 @@ class Ping(Service):
                 "Unexpected message {} {}".format(key, status),
                 conversation_id=conversation_id,
             )
-
-    def on_ShutdownStarted(self, payload, conversation_id):
-        self.log(INFO, "Received signal for shutdown.")
-        self.stop()
 
     def handle_returned_message(self, key, message, envelope):
         self.log(CRITICAL, "unroutable {}.{}.{}".format(key, message, envelope))
