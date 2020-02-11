@@ -24,6 +24,7 @@
 import sys
 import time
 
+from eventail.log_criticity import INFO
 from eventail.sync_publisher import Endpoint
 
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     try:
         while True:
             api.publish_event("SecondTicked", {"unix_time": int(time.time())}, str(i))
-            print("ticked!")
+            api.log(INFO, "ticked!", conversation_id=str(i))
             i += 1
             time.sleep(1)
     except KeyboardInterrupt:
