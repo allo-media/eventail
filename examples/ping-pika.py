@@ -26,7 +26,7 @@ import sys
 from random import choice
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
-from eventail.log_criticity import CRITICAL, ERROR, INFO, NOTICE
+from eventail.log_criticity import CRITICAL, INFO, NOTICE
 
 MESSAGES = [
     "hello",
@@ -93,7 +93,9 @@ if __name__ == "__main__":
 
     service_name = sys.argv[1]
     urls = sys.argv[2:] if len(sys.argv) > 2 else ["amqp://localhost"]
-    ping = ReconnectingSupervisor(Ping, urls, [], [service_name + ".EchoReturn"],  service_name)
+    ping = ReconnectingSupervisor(
+        Ping, urls, [], [service_name + ".EchoReturn"], service_name
+    )
     print("To exit press CTRL+C")
     ping.run()
     print("Bye!")

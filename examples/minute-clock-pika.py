@@ -39,7 +39,9 @@ class MinuteClock(Service):
     def on_SecondTicked(self, payload, conversation_id):
         dtime = datetime.datetime.fromtimestamp(payload["unix_time"])
         if self.last_time is None or self.last_time.minute != dtime.minute:
-            self.publish_event("MinuteTicked", {"iso_time": dtime.isoformat()}, conversation_id)
+            self.publish_event(
+                "MinuteTicked", {"iso_time": dtime.isoformat()}, conversation_id
+            )
         self.last_time = dtime
 
     def healthcheck(self):
@@ -50,7 +52,9 @@ class MinuteClock(Service):
 if __name__ == "__main__":
 
     urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
-    minute_clock = ReconnectingSupervisor(MinuteClock, urls, ["SecondTicked"], [], "minute")
+    minute_clock = ReconnectingSupervisor(
+        MinuteClock, urls, ["SecondTicked"], [], "minute"
+    )
     print("To exit press CTRL+C")
     minute_clock.run()
     print("Bye!")

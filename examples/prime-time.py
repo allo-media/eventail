@@ -29,19 +29,26 @@ from eventail.log_criticity import NOTICE
 
 
 class PrimeTime(Service):
-
     def on_ready(self):
         self.healthcheck()
 
     def on_SecondTicked(self, payload, conversation_id):
         unix_time = payload["unix_time"]
-        self.send_command("prime.CheckPrime", {"number": unix_time}, conversation_id, "prime_time.CheckPrimeResult", correlation_id=str(unix_time))
+        self.send_command(
+            "prime.CheckPrime",
+            {"number": unix_time},
+            conversation_id,
+            "prime_time.CheckPrimeResult",
+            correlation_id=str(unix_time),
+        )
 
     def on_CheckPrimeResult(self, payload, conversation_id, status, correlation_id):
         if status != "success" or not payload["is_prime?"]:
             return
         original_time = int(correlation_id)
-        self.publish_event("PrimeTimeTicked", {"prime_time": original_time}, conversation_id)
+        self.publish_event(
+            "PrimeTimeTicked", {"prime_time": original_time}, conversation_id
+        )
 
     def healthcheck(self):
         self.log(NOTICE, "I'm fine!")
@@ -51,7 +58,9 @@ class PrimeTime(Service):
 if __name__ == "__main__":
 
     urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
-    prime_time = ReconnectingSupervisor(PrimeTime, urls, ["SecondTicked"], ["prime_time.CheckPrimeResult"], "prime_time")
+    prime_time = ReconnectingSupervisor(
+        PrimeTime, urls, ["SecondTicked"], ["prime_time.CheckPrimeResult"], "prime_time"
+    )
     print("To exit press CTRL+C")
     prime_time.run()
     print("Bye!")

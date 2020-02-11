@@ -30,6 +30,7 @@ from eventail.log_criticity import ERROR, NOTICE
 
 _primes = [2, 3]
 
+
 def primes():
     for p in _primes:
         yield p
@@ -42,18 +43,19 @@ def primes():
 
 def is_prime(num):
     for p in primes():
-        if p*p > num:
+        if p * p > num:
             return True
         elif num % p == 0:
             return False
 
 
 class PrimeService(Service):
-
     def on_CheckPrime(self, payload, conversation_id, reply_to, correlation_id):
         number = payload["number"]
 
-        self.return_success(reply_to, {"is_prime?": is_prime(number)}, conversation_id, correlation_id)
+        self.return_success(
+            reply_to, {"is_prime?": is_prime(number)}, conversation_id, correlation_id
+        )
 
     def handle_returned_message(self, key, message, envelope):
         self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
@@ -73,9 +75,7 @@ if __name__ == "__main__":
     # logger.addHandler(logging.StreamHandler())
     # logger.setLevel(logging.DEBUG)
     urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
-    echo = ReconnectingSupervisor(
-        PrimeService, urls, [], ["prime.CheckPrime"], "prime"
-    )
+    echo = ReconnectingSupervisor(PrimeService, urls, [], ["prime.CheckPrime"], "prime")
     print("To exit press CTRL+C")
     echo.run()
     print("Bye!")
