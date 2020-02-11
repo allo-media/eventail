@@ -47,31 +47,16 @@ class Ping(Service):
 
     PREFETCH_COUNT = 10
 
-    def __init__(self, host, logical_service):
-        self.return_key = logical_service + ".EchoMessage"
-        super().__init__(host, [], [self.return_key], logical_service)
-
     def on_ready(self):
         self.healthcheck()
         self.ping()
 
-    def handle_result(self, key, message, conversation_id, status, correlation_id):
+    def on_EchoReturn(self, payload, conversation_id, status, correlation_id):
         self.log(
-            INFO, "Received {} {}".format(key, status), conversation_id=conversation_id
+            INFO,
+            "Got echo: {} {}".format(payload, correlation_id),
+            conversation_id=conversation_id,
         )
-        if key == self.return_key:
-            self.log(
-                INFO,
-                "Got echo: {} {}".format(message, correlation_id),
-                conversation_id=conversation_id,
-            )
-        else:
-            # should never happen: means we misconfigured the routing keys
-            self.log(
-                ERROR,
-                "Unexpected message {} {}".format(key, status),
-                conversation_id=conversation_id,
-            )
 
     def handle_returned_message(self, key, message, envelope):
         self.log(CRITICAL, "unroutable {}.{}.{}".format(key, message, envelope))
@@ -89,7 +74,7 @@ class Ping(Service):
             "pong.EchoMessage",
             message,
             conversation_id,
-            self.return_key,
+            self.logical_service + ".EchoReturn",
             correlation_id,
         )
         self.call_later(1, self.ping)
@@ -108,7 +93,7 @@ if __name__ == "__main__":
 
     service_name = sys.argv[1]
     urls = sys.argv[2:] if len(sys.argv) > 2 else ["amqp://localhost"]
-    ping = ReconnectingSupervisor(Ping, urls, service_name)
+    ping = ReconnectingSupervisor(Ping, urls, [], [service_name + ".EchoReturn"],  service_name)
     print("To exit press CTRL+C")
     ping.run()
     print("Bye!")
