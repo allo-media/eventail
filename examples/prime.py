@@ -53,7 +53,7 @@ class PrimeService(Service):
     def on_CheckPrime(self, payload, conversation_id, reply_to, correlation_id):
         number = payload["number"]
 
-        self.return_success(reply_to, {"is_prime": is_prime(number), "number": number}, conversation_id, correlation_id)
+        self.return_success(reply_to, {"is_prime?": is_prime(number)}, conversation_id, correlation_id)
 
     def handle_returned_message(self, key, message, envelope):
         self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
@@ -67,11 +67,11 @@ class PrimeService(Service):
 
 
 if __name__ == "__main__":
-    import logging
+    # import logging
 
-    logger = logging.getLogger("async_service")
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
+    # logger = logging.getLogger("async_service")
+    # logger.addHandler(logging.StreamHandler())
+    # logger.setLevel(logging.DEBUG)
     urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
     echo = ReconnectingSupervisor(
         PrimeService, urls, [], ["prime.CheckPrime"], "prime"
