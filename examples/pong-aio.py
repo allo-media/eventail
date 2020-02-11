@@ -33,6 +33,7 @@ class EchoService(Service):
 
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
+    HEARTBEAT = 120
 
     async def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
         assert "message" in message, "missing key 'message' in message!"

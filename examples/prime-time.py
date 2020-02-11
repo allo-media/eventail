@@ -25,29 +25,30 @@
 import sys
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
-from eventail.log_criticity import ERROR, INFO, NOTICE
+from eventail.log_criticity import NOTICE
 
 
-class EchoService(Service):
-
-    PREFETCH_COUNT = 10
-    RETRY_DELAY = 2
-
-    def on_EchoMessage(self, payload, conversation_id, reply_to, correlation_id):
-        text = payload["message"].upper()
-        self.log(
-            INFO,
-            "Echoing",
-            "Sending back {}".format(text),
-            conversation_id=conversation_id,
-        )
-        self.return_success(reply_to, {"echo": text}, conversation_id, correlation_id)
-
-    def handle_returned_message(self, key, message, envelope):
-        self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
-
+class PrimeTime(Service):
     def on_ready(self):
         self.healthcheck()
+
+    def on_SecondTicked(self, payload, conversation_id):
+        unix_time = payload["unix_time"]
+        self.send_command(
+            "prime.CheckPrime",
+            {"number": unix_time},
+            conversation_id,
+            "prime_time.CheckPrimeResult",
+            correlation_id=str(unix_time),
+        )
+
+    def on_CheckPrimeResult(self, payload, conversation_id, status, correlation_id):
+        if status != "success" or not payload["is_prime?"]:
+            return
+        original_time = int(correlation_id)
+        self.publish_event(
+            "PrimeTimeTicked", {"prime_time": original_time}, conversation_id
+        )
 
     def healthcheck(self):
         self.log(NOTICE, "I'm fine!")
@@ -55,13 +56,11 @@ class EchoService(Service):
 
 
 if __name__ == "__main__":
-    # import logging
 
-    # logger = logging.getLogger("async_service")
-    # logger.addHandler(logging.StreamHandler())
-    # logger.setLevel(logging.DEBUG)
-    urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
-    echo = ReconnectingSupervisor(EchoService, urls, [], ["pong.EchoMessage"], "pong")
+    urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
+    prime_time = ReconnectingSupervisor(
+        PrimeTime, urls, ["SecondTicked"], ["prime_time.CheckPrimeResult"], "prime_time"
+    )
     print("To exit press CTRL+C")
-    echo.run()
+    prime_time.run()
     print("Bye!")

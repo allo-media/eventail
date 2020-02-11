@@ -22,32 +22,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+import datetime
 import sys
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
-from eventail.log_criticity import ERROR, INFO, NOTICE
+from eventail.log_criticity import NOTICE
 
 
-class EchoService(Service):
+class MinuteClock(Service):
 
-    PREFETCH_COUNT = 10
-    RETRY_DELAY = 2
-
-    def on_EchoMessage(self, payload, conversation_id, reply_to, correlation_id):
-        text = payload["message"].upper()
-        self.log(
-            INFO,
-            "Echoing",
-            "Sending back {}".format(text),
-            conversation_id=conversation_id,
-        )
-        self.return_success(reply_to, {"echo": text}, conversation_id, correlation_id)
-
-    def handle_returned_message(self, key, message, envelope):
-        self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
+    last_time = None
 
     def on_ready(self):
         self.healthcheck()
+
+    def on_SecondTicked(self, payload, conversation_id):
+        dtime = datetime.datetime.fromtimestamp(payload["unix_time"])
+        if self.last_time is None or self.last_time.minute != dtime.minute:
+            self.publish_event(
+                "MinuteTicked", {"iso_time": dtime.isoformat()}, conversation_id
+            )
+        self.last_time = dtime
 
     def healthcheck(self):
         self.log(NOTICE, "I'm fine!")
@@ -55,13 +50,11 @@ class EchoService(Service):
 
 
 if __name__ == "__main__":
-    # import logging
 
-    # logger = logging.getLogger("async_service")
-    # logger.addHandler(logging.StreamHandler())
-    # logger.setLevel(logging.DEBUG)
-    urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
-    echo = ReconnectingSupervisor(EchoService, urls, [], ["pong.EchoMessage"], "pong")
+    urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
+    minute_clock = ReconnectingSupervisor(
+        MinuteClock, urls, ["SecondTicked"], [], "minute"
+    )
     print("To exit press CTRL+C")
-    echo.run()
+    minute_clock.run()
     print("Bye!")
