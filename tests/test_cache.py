@@ -1,4 +1,5 @@
 from unittest import TestCase
+from unittest.mock import MagicMock
 
 from eventail.tmp_store import STDataStore
 
@@ -24,4 +25,19 @@ class TestSTDataStore(TestCase):
         self.tmp_store.mset(dict(key1=1, key2=2))
         self.assertEqual(self.tmp_store.pop("key1"), 1)
         self.assertEqual(self.tmp_store.pop("key2"), 2)
+
+    def test_peek_or_create(self):
+        factory = MagicMock(return_value="hello")
+        self.assertIsNone(self.tmp_store.peek("key"))
+
+        val = self.tmp_store.peek_or_create("key", factory, 1)
+        self.assertEqual(val, "hello")
+        factory.assert_called()
+
+        factory = MagicMock(return_value="hello")
+        val = self.tmp_store.peek_or_create("key", factory, 1)
+        self.assertEqual(val, "hello")
+        factory.assert_not_called()
+
+
 

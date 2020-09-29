@@ -25,7 +25,7 @@
 """Share temporary data between service instances."""
 
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import cbor
 import redis
@@ -47,6 +47,8 @@ class STDataStore:
     To avoid race conditions between workers, all operations are atomic and we provide destructive reads,
     so that only one worker can take ownership a tmp_stored value.
 
+    All stored value have a common, limited, Time To Live to avoid memory leaks.
+
     Current implementation relies on Redis.
     """
 
@@ -59,7 +61,7 @@ class STDataStore:
         the same keys in two different tmp_stores as long as they use
         different namespaces.
         Time to live (ttl) argument is there to avoid memory leaks in
-        case some data slots are "forgotten".
+        case some data slots are "forgotten" (in seconds).
         """
         self.redis = redis_client
         self.namespace = namespace
@@ -179,3 +181,23 @@ class STDataStore:
             get_all_or_nothing, *rkeys, value_from_callable=True, watch_delay=0.1
         )
         return [cbor.loads(r) for r in res] if res else None
+
+    def peek_or_create(
+        self, key: str, factory: Callable[[], Any], max_op_time: int
+    ) -> Any:
+        """Get value associated with ``key`` if it exits, otherwise create it and store it.
+
+        The ``factory`` is a callable that creates new values on demand.
+        The check and, if needed, the creation of the value are concurrency safe : if the data is missing
+        (or its TTL expired), only one worker will be able to create the value, all others will wait, thanks
+        to a lock.
+
+        To avoid dead locks,``max_op_time`` is the maximum time in seconds the lock is hold. The factory
+        must produce a value within that time span.
+        """
+        with self.redis.lock(key + "_lock", timeout=max_op_time):
+            val = self.peek(key)
+            if val is None:
+                val = factory()
+                self.set(key, val)
+        return val
