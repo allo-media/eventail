@@ -185,7 +185,7 @@ class STDataStore:
     def peek_or_create(
         self, key: str, factory: Callable[[], Any], max_op_time: int
     ) -> Any:
-        """Get value associated with ``key`` if it exits, otherwise create it and store it.
+        """Get value associated with ``key`` if it exists, otherwise create it and store it.
 
         The ``factory`` is a callable that creates new values on demand.
         The check and, if needed, the creation of the value are concurrency safe : if the data is missing
