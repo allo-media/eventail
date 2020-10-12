@@ -44,4 +44,4 @@ Shared temporary data store
 
 
 .. autoclass:: eventail.tmp_store.STDataStore
-    :members: simple_redis_backend, sentinel_backend, is_down, set, mset, pop, mpop, peek
+    :members: simple_redis_backend, sentinel_backend, is_down, set, mset, pop, mpop, peek, peek_or_create

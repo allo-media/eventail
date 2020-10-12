@@ -37,19 +37,11 @@ import socket
 import time
 import traceback
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple
 
 import cbor
 import pika
+
 from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
 
 LOGGER = logging.getLogger("async_service")
@@ -514,9 +506,7 @@ class Service(object):
         self._channel.add_on_cancel_callback(self.on_consumer_cancelled)
 
     def add_on_return_callback(self) -> None:
-        """Add a callback that will be invoked to return an unroutable message.
-
-        """
+        """Add a callback that will be invoked to return an unroutable message."""
         LOGGER.info("Adding return callback")
         self._channel.add_on_return_callback(self.on_message_returned)
 
