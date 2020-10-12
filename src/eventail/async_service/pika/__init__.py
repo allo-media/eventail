@@ -21,5 +21,5 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-from .base import Service, JSON_MODEL, HEADER  # noqa: F401
+from .base import HEADER, JSON_MODEL, Service  # noqa: F401
 from .supervisor import ReconnectingSupervisor  # noqa: F401

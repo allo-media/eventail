@@ -44,6 +44,7 @@ from urllib.parse import urlencode
 import aiormq
 import cbor
 from aiormq import exceptions, types
+
 from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
 
 JSON_MODEL = Dict[str, Any]
@@ -87,7 +88,9 @@ class Service:
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
         self.logical_service = logical_service
-        self.loop: asyncio.AbstractEventLoop = loop if loop is not None else asyncio.get_running_loop()
+        self.loop: asyncio.AbstractEventLoop = (
+            loop if loop is not None else asyncio.get_running_loop()
+        )
         self.exclusive_queues = False
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"

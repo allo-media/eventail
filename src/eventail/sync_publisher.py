@@ -24,20 +24,17 @@
 """
 A base class implementing AM service architecture and its requirements for a synchronous publisher Endpoint.
 """
-from typing import Any, Dict, List
-
 import logging
 import os
 import socket
 import time
+from typing import Any, Dict, List
 
 import cbor
 from kombu import Connection, Exchange
 from kombu.pools import producers, set_limit
 
-
 from eventail.log_criticity import CRITICITY_LABELS
-
 
 JSON_MODEL = Dict[str, Any]
 LOGGER = logging.getLogger("sync_endpoint")
