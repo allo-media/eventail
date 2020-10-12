@@ -25,23 +25,37 @@
 import sys
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
-from eventail.log_criticity import ERROR, INFO, NOTICE
+from eventail.log_criticity import ERROR, NOTICE
 
 
-class EchoService(Service):
+_primes = [2, 3]
 
-    PREFETCH_COUNT = 10
-    RETRY_DELAY = 2
 
-    def on_EchoMessage(self, payload, conversation_id, reply_to, correlation_id):
-        text = payload["message"].upper()
-        self.log(
-            INFO,
-            "Echoing",
-            "Sending back {}".format(text),
-            conversation_id=conversation_id,
+def primes():
+    for p in _primes:
+        yield p
+    while True:
+        p += 2
+        if is_prime(p):
+            _primes.append(p)
+            yield p
+
+
+def is_prime(num):
+    for p in primes():
+        if p * p > num:
+            return True
+        elif num % p == 0:
+            return False
+
+
+class PrimeService(Service):
+    def on_CheckPrime(self, payload, conversation_id, reply_to, correlation_id):
+        number = payload["number"]
+
+        self.return_success(
+            reply_to, {"is_prime?": is_prime(number)}, conversation_id, correlation_id
         )
-        self.return_success(reply_to, {"echo": text}, conversation_id, correlation_id)
 
     def handle_returned_message(self, key, message, envelope):
         self.log(ERROR, "unroutable message", "{}.{}.{}".format(key, message, envelope))
@@ -61,7 +75,7 @@ if __name__ == "__main__":
     # logger.addHandler(logging.StreamHandler())
     # logger.setLevel(logging.DEBUG)
     urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
-    echo = ReconnectingSupervisor(EchoService, urls, [], ["pong.EchoMessage"], "pong")
+    echo = ReconnectingSupervisor(PrimeService, urls, [], ["prime.CheckPrime"], "prime")
     print("To exit press CTRL+C")
     echo.run()
     print("Bye!")
