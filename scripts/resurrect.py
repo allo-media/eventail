@@ -72,7 +72,7 @@ class Resurrection:
 
     def replay(self):
         for method, properties, body in self.messages:
-            print("Replaying", method, properties)
+            print("Replaying", method)
             print()
             self._channel.basic_publish(
                 exchange=properties.headers["x-first-death-exchange"],

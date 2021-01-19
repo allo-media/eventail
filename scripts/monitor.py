@@ -24,6 +24,7 @@
 #
 from typing import Any, Dict
 import argparse
+import os
 import pprint
 
 import cbor
@@ -41,6 +42,8 @@ class Monitor(Service):
     def dump(self, key, conversation_id, payload):
         if self.save:
             filename = f"{key}.{conversation_id}.cbor"
+            if os.path.exists(filename):
+                filename = f"{key}.{conversation_id}.2.cbor"
             with open(filename, "wb") as output:
                 cbor.dump(payload, output)
             print("Payload saved as", filename)
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     monitor.use_exclusive_queues()
     print("Subscribing to events:", args.events)
     print("Subscribing to commands:", args.commands)
-    print("Ctr-C to quit.")
+    print("Press Ctr-C to quit.")
     try:
         monitor.run()
     except KeyboardInterrupt:

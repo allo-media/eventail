@@ -39,5 +39,8 @@ class TestSTDataStore(TestCase):
         self.assertEqual(val, "hello")
         factory.assert_not_called()
 
+    def test_is_down(self):
+        self.assertEqual(self.tmp_store.is_down(), "")
+
 
 
