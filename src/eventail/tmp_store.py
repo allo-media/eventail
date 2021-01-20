@@ -26,6 +26,7 @@
 
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from uuid import uuid4
 
 import cbor
 import redis
@@ -66,7 +67,7 @@ class STDataStore:
         self.redis = redis_client
         self.namespace = namespace
         self.ttl = ttl
-        self.health_key = self._absolute("health")
+        self.health_key = self._absolute(f"health {uuid4()}")
 
     @classmethod
     def simple_redis_backend(
