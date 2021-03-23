@@ -129,18 +129,23 @@ class STDataStore:
         else:
             return "" if val == "health" else "inconsistent data read!"
 
-    def set(self, key: str, value: Any) -> None:
+    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         """Store `value`  under key `key`.
 
         `value` can be any serializable python data.
         """
-        self.redis.setex(self._absolute(key), self.ttl, cbor.dumps(value))
+        self.redis.setex(self._absolute(key), ttl or self.ttl, cbor.dumps(value))
 
-    def mset(self, data: Dict[str, Any]) -> None:
+    def mset(self, data: Dict[str, Any], ttl: Optional[int] = None) -> None:
         """Atomically store multiple `key: value` pairs given in dictionary."""
         self.redis.mset(
             {self._absolute(key): cbor.dumps(value) for key, value in data.items()}
         )
+        ttl = ttl or self.ttl
+        pipeline = self.redis.pipeline()
+        for key in data.keys():
+            pipeline.expire(self._absolute(key), ttl)
+        pipeline.execute()
 
     def pop(self, key: str) -> Any:
         """Retrieve the data associated with `key` and delete the key atomically.
@@ -148,7 +153,7 @@ class STDataStore:
         Return None if operation key does not exist.
         """
         rkey = self._absolute(key)
-        res = self.redis.pipeline().get(rkey).delete(rkey).execute()
+        res = self.redis.pipeline().get(rkey).delete(rkey).execute()  # type: ignore
         return cbor.loads(res[0]) if res[0] is not None else None
 
     def peek(self, key: str) -> Any:
@@ -184,7 +189,11 @@ class STDataStore:
         return [cbor.loads(r) for r in res] if res else None
 
     def peek_or_create(
-        self, key: str, factory: Callable[[], Any], max_op_time: int
+        self,
+        key: str,
+        factory: Callable[[], Any],
+        max_op_time: int,
+        ttl: Optional[int] = None,
     ) -> Any:
         """Get value associated with ``key`` if it exists, otherwise create it and store it.
 
@@ -200,5 +209,5 @@ class STDataStore:
             val = self.peek(key)
             if val is None:
                 val = factory()
-                self.set(key, val)
+                self.set(key, val, ttl)
         return val
