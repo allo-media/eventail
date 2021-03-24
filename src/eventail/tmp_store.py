@@ -138,11 +138,11 @@ class STDataStore:
 
     def mset(self, data: Dict[str, Any], ttl: Optional[int] = None) -> None:
         """Atomically store multiple `key: value` pairs given in dictionary."""
-        self.redis.mset(
-            {self._absolute(key): cbor.dumps(value) for key, value in data.items()}
-        )
         ttl = ttl or self.ttl
         pipeline = self.redis.pipeline()
+        pipeline.mset(
+            {self._absolute(key): cbor.dumps(value) for key, value in data.items()}
+        )
         for key in data.keys():
             pipeline.expire(self._absolute(key), ttl)
         pipeline.execute()
