@@ -43,7 +43,8 @@ from urllib.parse import urlencode
 
 import aiormq
 import cbor
-from aiormq import exceptions, types
+from aiormq import exceptions, spec
+from aiormq.abc import DeliveredMessage
 
 from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
 
@@ -111,7 +112,7 @@ class Service:
         else:
             self.stopped.set()
 
-    async def on_message(self, message: types.DeliveredMessage) -> None:
+    async def on_message(self, message: DeliveredMessage) -> None:
 
         properties = message.header.properties
 
@@ -187,7 +188,7 @@ class Service:
     async def ack_policy(
         self,
         ch: aiormq.Channel,
-        deliver: types.spec.Basic.Deliver,
+        deliver: spec.Basic.Deliver,
         conversation_id: str,
         reply_to: str,
         correlation_id: str,
@@ -246,7 +247,7 @@ class Service:
                     exchange=exchange,
                     routing_key=routing_key,
                     mandatory=mandatory,
-                    properties=aiormq.spec.Basic.Properties(
+                    properties=spec.Basic.Properties(
                         delivery_mode=2,  # make message persistent
                         content_type=self._mime_type,
                         reply_to=reply_to,
@@ -385,12 +386,21 @@ class Service:
         await self._connection.close()
 
     async def log(
-        self, criticity: int, short: str, full: str = "", conversation_id: str = ""
+        self,
+        criticity: int,
+        short: str,
+        full: str = "",
+        conversation_id: str = "",
+        additional_fields: Dict = {},
     ) -> None:
         """Log to the log bus.
 
-        Parameters are unicode strings, except for the `criticity` level,
-        which is an int in the syslog scale.
+
+        Parameters:
+         - `criticity`: int, in the syslog scale
+         - `short`: str, short description of log
+         - `full`: str, the full message of the log (appears as `message` in Graylog)
+         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
         """
         # no persistent messages, no delivery confirmations
         level_name = CRITICITY_LABELS[criticity % 8]
@@ -407,6 +417,11 @@ class Service:
                 "_logical_service": self.logical_service,
                 "_worker_pid": self.ID,
             }
+            for key, value in additional_fields.items():
+                if key.startswith("_"):  # already escaped
+                    log[key] = value
+                else:
+                    log[f"_{key}"] = value
             await self._log_channel.basic_publish(
                 exchange=self.LOG_EXCHANGE,
                 routing_key="{}.{}".format(self.logical_service, level_name),

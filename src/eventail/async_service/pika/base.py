@@ -769,12 +769,20 @@ class Service(object):
         self.exclusive_queues = True
 
     def log(
-        self, criticity: int, short: str, full: str = "", conversation_id: str = ""
+        self,
+        criticity: int,
+        short: str,
+        full: str = "",
+        conversation_id: str = "",
+        additional_fields: Dict = {},
     ) -> None:
         """Log to the log bus.
 
-        Parameters are unicode strings, except for the `criticity` level,
-        which is an int in the syslog scale.
+        Parameters:
+         - `criticity`: int, in the syslog scale
+         - `short`: str, short description of log
+         - `full`: str, the full message of the log (appears as `message` in Graylog)
+         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
         """
         # no persistent messages, no delivery confirmations
         level_name = CRITICITY_LABELS[criticity % 8]
@@ -790,6 +798,11 @@ class Service(object):
             "_logical_service": self.logical_service,
             "_worker_pid": self.ID,
         }
+        for key, value in additional_fields.items():
+            if key.startswith("_"):  # already escaped
+                log[key] = value
+            else:
+                log[f"_{key}"] = value
         LOGGER.debug("Application logged: %s\n%s", short, full)
         self._log_channel.basic_publish(
             exchange=self.LOG_EXCHANGE,
