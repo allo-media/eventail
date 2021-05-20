@@ -26,7 +26,6 @@ import json
 import os
 import signal
 import socket
-import time
 import traceback
 from contextlib import asynccontextmanager
 from typing import (
@@ -46,7 +45,8 @@ import cbor
 from aiormq import exceptions, spec
 from aiormq.abc import DeliveredMessage
 
-from eventail.log_criticity import ALERT, CRITICITY_LABELS, EMERGENCY, ERROR, WARNING
+from eventail.gelf import GELF
+from eventail.log_criticity import ALERT, EMERGENCY, ERROR, WARNING
 
 JSON_MODEL = Dict[str, Any]
 HEADER = Dict[str, str]
@@ -402,30 +402,13 @@ class Service:
          - `full`: str, the full message of the log (appears as `message` in Graylog)
          - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
         """
+        gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         # no persistent messages, no delivery confirmations
-        level_name = CRITICITY_LABELS[criticity % 8]
         try:
-            log = {
-                "version": "1.1",
-                "short_message": short,
-                "full_message": full,
-                "level": criticity,
-                "_levelname": level_name,
-                "host": f"{self.logical_service}@{self.HOSTNAME}",
-                "timestamp": time.time(),
-                "_conversation_id": conversation_id,
-                "_logical_service": self.logical_service,
-                "_worker_pid": self.ID,
-            }
-            for key, value in additional_fields.items():
-                if key.startswith("_"):  # already escaped
-                    log[key] = value
-                else:
-                    log[f"_{key}"] = value
             await self._log_channel.basic_publish(
                 exchange=self.LOG_EXCHANGE,
-                routing_key="{}.{}".format(self.logical_service, level_name),
-                body=json.dumps(log).encode("utf-8"),
+                routing_key=gelf.routing_key,
+                body=gelf.payload,
             )
         except RuntimeError as e:
             if "closed" not in e.args[0]:
