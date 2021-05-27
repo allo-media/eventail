@@ -15,7 +15,7 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Intended Audience :: Developers",
         "Operating System :: POSIX :: Linux",
         "Topic :: Software Development",
@@ -36,5 +36,5 @@ setup(
         'synchronous': ["kombu"],
         'test': ["tox"]
     },
-    python_requires='>=3.7',
+    python_requires='>=3.8',
 )
