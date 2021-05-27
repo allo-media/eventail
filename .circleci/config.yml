@@ -50,12 +50,12 @@ jobs:
           name: run scripts
           command: |
             . venv/bin/activate
-            python scripts/monitor.py
-            python scripts/inspect_queue.py
-            python scripts/logger.py
-            python scripts/publish_event.py
-            python scripts/resurrect.py
-            python scripts/send_command.py
+            python scripts/monitor.py --help
+            python scripts/inspect_queue.py --help
+            python scripts/logger.py --help
+            python scripts/publish_event.py --help
+            python scripts/resurrect.py --help
+            python scripts/send_command.py --help
 
 
   deploy:
