@@ -44,6 +44,19 @@ jobs:
             . venv/bin/activate
             tox py3
 
+      # test scripts
+      - run:
+          name: run scripts
+          command: |
+            . venv/bin/activate
+            python scripts/monitor.py
+            python scripts/inspect_queue.py
+            python scripts/logger.py
+            python scripts/publish_event.py
+            python scripts/resurrect.py
+            python scripts/send_command.py
+
+
   deploy:
     docker:
       - image: circleci/python:3.8
