@@ -27,14 +27,13 @@ A base class implementing AM service architecture and its requirements for a syn
 import logging
 import os
 import socket
-import time
 from typing import Any, Dict, List
 
 import cbor
 from kombu import Connection, Exchange
 from kombu.pools import producers, set_limit
 
-from eventail.log_criticity import CRITICITY_LABELS
+from eventail.gelf import GELF
 
 JSON_MODEL = Dict[str, Any]
 LOGGER = logging.getLogger("sync_endpoint")
@@ -76,36 +75,33 @@ class Endpoint:
         self._force_json = True
 
     def log(
-        self, criticity: int, short: str, full: str = "", conversation_id: str = ""
+        self,
+        criticity: int,
+        short: str,
+        full: str = "",
+        conversation_id: str = "",
+        additional_fields: Dict = {},
     ) -> None:
         """Log to the log bus.
 
-        Parameters are unicode strings, except for the `criticity` level,
-        which is an int in the syslog scale.
+
+        Parameters:
+         - `criticity`: int, in the syslog scale
+         - `short`: str, short description of log
+         - `full`: str, the full message of the log (appears as `message` in Graylog)
+         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
         """
         # no persistent messages, no retry
-        level_name = CRITICITY_LABELS[criticity % 8]
-        log = {
-            "version": "1.1",
-            "short_message": short,
-            "full_message": full,
-            "level": criticity,
-            "_levelname": level_name,
-            "host": f"{self.logical_service}@{self.HOSTNAME}",
-            "timestamp": time.time(),
-            "_conversation_id": conversation_id,
-            "_logical_service": self.logical_service,
-            "_worker_pid": self.ID,
-        }
+        gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         LOGGER.debug("Application logged: %s\n%s", short, full)
 
         with producers[self._connection].acquire(block=True) as producer:
             producer.publish(
-                log,
+                gelf.payload,
                 delivery_mode=1,  # not persistent
                 exchange=self.log_exchange,
-                serializer="json",
-                routing_key="{}.{}".format(self.logical_service, level_name),
+                serializer=None,
+                routing_key=gelf.routing_key,
                 declare=[self.log_exchange],
                 retry=False,
             )

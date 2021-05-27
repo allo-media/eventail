@@ -100,7 +100,9 @@ class Ping(Service):
 
     async def healthcheck(self) -> None:
         while True:
-            await self.log(NOTICE, "I'm fine!")
+            await self.log(
+                NOTICE, "I'm fine!", additional_fields={"return_key": self.return_key}
+            )
             await asyncio.sleep(60)
 
     async def on_ready(self) -> None:

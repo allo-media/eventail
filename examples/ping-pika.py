@@ -80,7 +80,7 @@ class Ping(Service):
         self.call_later(1, self.ping)
 
     def healthcheck(self):
-        self.log(NOTICE, "I'm fine!")
+        self.log(NOTICE, "I'm fine!", additional_fields={"healthcheck": "ok"})
         self.call_later(60, self.healthcheck)
 
 

@@ -36,8 +36,14 @@ if __name__ == "__main__":
     i = 1
     try:
         while True:
-            api.publish_event("SecondTicked", {"unix_time": int(time.time())}, str(i))
-            api.log(INFO, "ticked!", conversation_id=str(i))
+            t = int(time.time())
+            api.publish_event("SecondTicked", {"unix_time": t}, str(i))
+            api.log(
+                INFO,
+                "ticked!",
+                conversation_id=str(i),
+                additional_fields={"sent_time": t},
+            )
             i += 1
             time.sleep(1)
     except KeyboardInterrupt:
