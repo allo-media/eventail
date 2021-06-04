@@ -27,7 +27,7 @@ A base class implementing AM service architecture and its requirements for a syn
 import logging
 import os
 import socket
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import cbor
 from kombu import Connection, Exchange
@@ -107,12 +107,19 @@ class Endpoint:
             )
 
     def publish_event(
-        self, event: str, message: JSON_MODEL, conversation_id: str
+        self,
+        event: str,
+        message: JSON_MODEL,
+        conversation_id: str,
+        max_retries: Optional[int] = None,
     ) -> None:
         """Publish an event on the bus.
 
         The ``event`` is the name of the event,
         and the `message` is any data conforming to the JSON model.
+        `max_retries` is None by default (retry for ever) but can be an `int`
+        to specify the number of attempts to send the message before the error is raised.
+        The firt retry is immediate, then the interval increases by one second at each step.
         """
 
         with producers[self._connection].acquire(block=True) as producer:
@@ -132,5 +139,6 @@ class Endpoint:
                     "interval_start": 0,  # First retry immediately,
                     "interval_step": 1,  # then increase by 1s for every retry.
                     "interval_max": 30,  # but don't exceed 30s between retries.
+                    "max_retries": max_retries,
                 },
             )
