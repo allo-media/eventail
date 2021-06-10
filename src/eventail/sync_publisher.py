@@ -104,6 +104,8 @@ class Endpoint:
         gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         LOGGER.debug("Application logged: %s\n%s", short, full)
 
+        # the timeout here has no measurable effect in my tests, but I set it here to rule out
+        # possible issues
         with producers[self._connection].acquire(block=True, timeout=2) as producer:
             producer.publish(
                 gelf.payload,
@@ -131,7 +133,9 @@ class Endpoint:
         The firt retry is immediate, then the interval increases by one second at each step.
         """
 
-        with producers[self._connection].acquire(block=True) as producer:
+        # the timeout here has no measurable effect in my tests, but I set it here to rule out
+        # possible issues
+        with producers[self._connection].acquire(block=True, timeout=2) as producer:
             headers = {"conversation_id": str(conversation_id)}
             producer.publish(
                 message if self._force_json else cbor.dumps(message),
