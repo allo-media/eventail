@@ -50,7 +50,12 @@ class Endpoint:
     EVENT_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
 
-    def __init__(self, amqp_urls: List[str], logical_service: str) -> None:
+    def __init__(
+        self,
+        amqp_urls: List[str],
+        logical_service: str,
+        connection_max_retries: Optional[int] = None,
+    ) -> None:
         """Initialize endpoint.
 
         * ``amqp_urls`` is a list of broker urls that will be tried in turn (round robin style) to send messages.
@@ -60,7 +65,11 @@ class Endpoint:
         self.logical_service = logical_service
 
         self._connection = Connection(
-            amqp_urls, transport_options={"confirm_publish": True}
+            amqp_urls,
+            transport_options={
+                "confirm_publish": True,
+                "max_retries": connection_max_retries,
+            },
         )
         self.event_exchange = Exchange(
             self.EVENT_EXCHANGE, type=self.EVENT_EXCHANGE_TYPE, durable=True
@@ -95,7 +104,7 @@ class Endpoint:
         gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         LOGGER.debug("Application logged: %s\n%s", short, full)
 
-        with producers[self._connection].acquire(block=True) as producer:
+        with producers[self._connection].acquire(block=True, timeout=2) as producer:
             producer.publish(
                 gelf.payload,
                 delivery_mode=1,  # not persistent

@@ -32,12 +32,12 @@ if __name__ == "__main__":
     assert len(sys.argv) > 1, "Usage: clock-sp amqp-url [amqp-url…]"
     amqp_urls = sys.argv[1:]
     print("Starting…")
-    api = Endpoint(amqp_urls, "clock")
+    api = Endpoint(amqp_urls, "clock", connection_max_retries=2)
     i = 1
     try:
         while True:
             t = int(time.time())
-            api.publish_event("SecondTicked", {"unix_time": t}, str(i))
+            api.publish_event("SecondTicked", {"unix_time": t}, str(i), max_retries=3)
             api.log(
                 INFO,
                 "ticked!",
