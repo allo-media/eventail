@@ -35,12 +35,16 @@ from pika.exceptions import (
 )
 
 
+PREFETCH_COUNT = 1
+
+
 class Resurrection:
     def __init__(self, url: str, queue: str, count: int = 0) -> None:
         connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
 
         result = channel.queue_declare(queue, passive=True)
+        channel.basic_qos(prefetch_count=PREFETCH_COUNT)
         queue_name = result.method.queue
         self._count = result.method.message_count if count == 0 else count
         self._seen = 0
@@ -65,9 +69,15 @@ class Resurrection:
         # we cache the message to avoid loops if
         # some resurrected messages come back dead again.
         self.messages.append((method, properties, body))
+        print("Buffering message", method)
         self._seen += 1
         if self._seen == self._count:
+            print("replay")
+            self.replay()
+            print("stop consuming")
             self._channel.stop_consuming()
+        elif self._seen % PREFETCH_COUNT == 0:
+            print("replay batch")
             self.replay()
 
     def replay(self):
@@ -88,6 +98,7 @@ class Resurrection:
             )
             # Confirm consumption only if successfuly resent
             self._channel.basic_ack(method.delivery_tag)
+        self.messages.clear()
 
     def run(self):
         try:
@@ -99,8 +110,11 @@ class Resurrection:
             ConnectionClosed,
             AMQPConnectionError,
             AMQPHeartbeatTimeout,
-        ):
+        ) as e:
+            print(e)
             return False
+        else:
+            return True
         finally:
             if not self._connection.is_closed:
                 self._connection.close()
@@ -127,5 +141,7 @@ if __name__ == "__main__":
     print("Ctrl-C to quit.")
     print("Resurrecting from:", args.queue)
     inspector = Resurrection(args.amqp_url, args.queue, args.count)
-    inspector.run()
-    print("Done!")
+    if inspector.run():
+        print("Done!")
+    else:
+        print("connection error (closed)")
