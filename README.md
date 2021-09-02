@@ -140,16 +140,20 @@ optional arguments:
 
 ```
 resurrect.py --help
-usage: resurrect.py [-h] [--count COUNT] amqp_url queue
+usage: resurrect.py [-h] [--count COUNT] [--batch_size BATCH_SIZE] amqp_url queue
 
 Resend dead letters.
 
 positional arguments:
-  amqp_url       URL of the broker, including credentials.
-  queue          Name of dead-letter queue.
+  amqp_url              URL of the broker, including credentials.
+  queue                 Name of dead-letter queue.
 
 optional arguments:
-  -h, --help     show this help message and exit
-  --count COUNT  Number of message to resurrect (default is 0 = all).
+  -h, --help            show this help message and exit
+  --count COUNT         Number of message to resurrect (default is 0 = all).
+  --batch_size BATCH_SIZE
+                        for more efficiency, if the messages are small, process them in batches of
+                        this size (default is 1).
+
 ```
 

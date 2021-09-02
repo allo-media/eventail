@@ -36,11 +36,15 @@ from pika.exceptions import (
 
 
 class Resurrection:
-    def __init__(self, url: str, queue: str, count: int = 0) -> None:
+    def __init__(
+        self, url: str, queue: str, batch_size: int = 1, count: int = 0
+    ) -> None:
         connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
 
+        self._batch_size = batch_size
         result = channel.queue_declare(queue, passive=True)
+        channel.basic_qos(prefetch_count=self._batch_size)
         queue_name = result.method.queue
         self._count = result.method.message_count if count == 0 else count
         self._seen = 0
@@ -65,9 +69,15 @@ class Resurrection:
         # we cache the message to avoid loops if
         # some resurrected messages come back dead again.
         self.messages.append((method, properties, body))
+        print("Buffering message", method)
         self._seen += 1
         if self._seen == self._count:
+            print("replay")
+            self.replay()
+            print("stop consuming")
             self._channel.stop_consuming()
+        elif self._seen % self._batch_size == 0:
+            print("replay batch")
             self.replay()
 
     def replay(self):
@@ -88,6 +98,7 @@ class Resurrection:
             )
             # Confirm consumption only if successfuly resent
             self._channel.basic_ack(method.delivery_tag)
+        self.messages.clear()
 
     def run(self):
         try:
@@ -99,8 +110,11 @@ class Resurrection:
             ConnectionClosed,
             AMQPConnectionError,
             AMQPHeartbeatTimeout,
-        ):
+        ) as e:
+            print(e)
             return False
+        else:
+            return True
         finally:
             if not self._connection.is_closed:
                 self._connection.close()
@@ -116,6 +130,12 @@ if __name__ == "__main__":
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--batch_size",
+        help="for more efficiency, if the messages are small, process them in batches of this size (default is 1).",
+        type=int,
+        default=1,
+    )
     # parser.add_argument(
     #     "--filter",
     #     help="Log patterns to subscribe to (default to all)",
@@ -126,6 +146,8 @@ if __name__ == "__main__":
     expected_stop = False
     print("Ctrl-C to quit.")
     print("Resurrecting from:", args.queue)
-    inspector = Resurrection(args.amqp_url, args.queue, args.count)
-    inspector.run()
-    print("Done!")
+    inspector = Resurrection(args.amqp_url, args.queue, args.batch_size, args.count)
+    if inspector.run():
+        print("Done!")
+    else:
+        print("connection error (closed)")
