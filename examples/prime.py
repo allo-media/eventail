@@ -50,7 +50,7 @@ def is_prime(num):
 
 
 class PrimeService(Service):
-    def on_CheckPrime(self, payload, conversation_id, reply_to, correlation_id):
+    def on_CheckPrime(self, payload, conversation_id, reply_to, correlation_id, _meta):
         number = payload["number"]
 
         self.return_success(

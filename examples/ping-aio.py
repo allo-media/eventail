@@ -54,7 +54,7 @@ class Ping(Service):
         )
 
     async def handle_result(
-        self, key, message, conversation_id, status, correlation_id
+        self, key, message, conversation_id, status, correlation_id, meta
     ):
         await self.log(
             DEBUG, f"Received {key} {status}", conversation_id=conversation_id
@@ -73,7 +73,7 @@ class Ping(Service):
                 conversation_id=conversation_id,
             )
 
-    async def on_ShutdownStarted(self, payload, conversation_id):
+    async def on_ShutdownStarted(self, payload, conversation_id, _meta):
         await self.log(INFO, "Received signal for shutdown.")
         await self.stop()
 

@@ -35,7 +35,9 @@ class EchoService(Service):
     RETRY_DELAY = 2
     HEARTBEAT = 120
 
-    async def on_EchoMessage(self, message, conversation_id, reply_to, correlation_id):
+    async def on_EchoMessage(
+        self, message, conversation_id, reply_to, correlation_id, _meta
+    ):
         assert "message" in message, "missing key 'message' in message!"
         await self.log(INFO, f"Echoing {message}", conversation_id=conversation_id)
         try:

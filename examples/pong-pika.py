@@ -33,7 +33,7 @@ class EchoService(Service):
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
 
-    def on_EchoMessage(self, payload, conversation_id, reply_to, correlation_id):
+    def on_EchoMessage(self, payload, conversation_id, reply_to, correlation_id, _meta):
         text = payload["message"].upper()
         self.log(
             INFO,

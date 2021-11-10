@@ -58,11 +58,13 @@ class Monitor(Service):
         conversation_id: str,
         status: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         print("Got a Result:", key)
-        print("conversation ID:", conversation_id)
+        print("Conversation ID:", conversation_id)
         print("Correlation ID:", correlation_id)
         print("Status", status)
+        print("Metadata:", meta)
         self.dump(key + "-result", conversation_id, payload)
         print("---------")
         print()
@@ -74,20 +76,27 @@ class Monitor(Service):
         conversation_id: str,
         reply_to: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         print("Got a Command", command)
-        print("conversation ID:", conversation_id)
+        print("Conversation ID:", conversation_id)
         print("Correlation ID", correlation_id)
         print("Return to", reply_to)
+        print("Metadata:", meta)
         self.dump(command, conversation_id, payload)
         print("---------")
         print()
 
     def handle_event(
-        self, event: str, payload: JSON_MODEL, conversation_id: str
+        self,
+        event: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         print("Got an Event", event)
-        print("conversation ID:", conversation_id)
+        print("Conversation ID:", conversation_id)
+        print("Metadata:", meta)
         self.dump(event, conversation_id, payload)
         print("---------")
         print()

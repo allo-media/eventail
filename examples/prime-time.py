@@ -32,7 +32,7 @@ class PrimeTime(Service):
     def on_ready(self):
         self.healthcheck()
 
-    def on_SecondTicked(self, payload, conversation_id):
+    def on_SecondTicked(self, payload, conversation_id, _meta):
         unix_time = payload["unix_time"]
         self.send_command(
             "prime.CheckPrime",
@@ -42,7 +42,9 @@ class PrimeTime(Service):
             correlation_id=str(unix_time),
         )
 
-    def on_CheckPrimeResult(self, payload, conversation_id, status, correlation_id):
+    def on_CheckPrimeResult(
+        self, payload, conversation_id, status, correlation_id, _meta
+    ):
         if status != "success" or not payload["is_prime?"]:
             return
         original_time = int(correlation_id)

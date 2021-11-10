@@ -116,7 +116,7 @@ class Service:
 
         properties = message.header.properties
 
-        headers: Dict[str, bytes] = properties.headers
+        headers: Dict[str, str] = properties.headers
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = message.delivery.routing_key
         exchange: str = message.delivery.exchange
@@ -125,8 +125,7 @@ class Service:
             # unrecoverable error, send to dead letter
             message.channel.basic_nack(message.delivery.delivery_tag, requeue=False)
             return
-        # the underlying lib uses bytes
-        conversation_id = headers["conversation_id"].decode("ascii")
+        conversation_id = headers.pop("conversation_id")
         try:
             payload: JSON_MODEL = decoder.loads(message.body) if message.body else None
         except ValueError:
@@ -141,10 +140,16 @@ class Service:
             )
             return
 
+        # meta
+        headers["timestamp"] = properties.timestamp
+        headers["expiration"] = properties.expiration
+        headers["user_id"] = properties.user_id
+        headers["app_id"] = properties.app_id
+
         if exchange == self.CMD_EXCHANGE:
             correlation_id = properties.correlation_id
             reply_to = properties.reply_to
-            status = headers.get("status", b"").decode("ascii") if headers else ""
+            status = headers.pop("status", "") if headers else ""
             if not (reply_to or status):
                 await self.log(
                     EMERGENCY,
@@ -165,7 +170,12 @@ class Service:
                     correlation_id,
                 ):
                     await self.handle_command(
-                        routing_key, payload, conversation_id, reply_to, correlation_id
+                        routing_key,
+                        payload,
+                        conversation_id,
+                        reply_to,
+                        correlation_id,
+                        meta=headers,
                     )
             else:
                 async with self.ack_policy(
@@ -176,13 +186,20 @@ class Service:
                     correlation_id,
                 ):
                     await self.handle_result(
-                        routing_key, payload, conversation_id, status, correlation_id
+                        routing_key,
+                        payload,
+                        conversation_id,
+                        status,
+                        correlation_id,
+                        meta=headers,
                     )
         else:
             async with self.ack_policy(
                 message.channel, message.delivery, conversation_id, "", ""
             ):
-                await self.handle_event(routing_key, payload, conversation_id)
+                await self.handle_event(
+                    routing_key, payload, conversation_id, meta=headers
+                )
 
     @asynccontextmanager
     async def ack_policy(
@@ -273,7 +290,7 @@ class Service:
 
     async def connect(self) -> None:
         """Connect to RabbitMQ, declare the topology and consumers."""
-        # Perform connection
+        # Perform connectionhandle_event
         connected = False
         url_idx = 0
         hb_query = "?{}".format(urlencode({"heartbeat": self.HEARTBEAT}))
@@ -516,7 +533,11 @@ class Service:
         return getattr(self, "_channel", asyncio).create_task(coro)
 
     async def handle_event(
-        self, event: str, payload: JSON_MODEL, conversation_id: str
+        self,
+        event: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming event (may be overwritten by subclasses).
 
@@ -529,7 +550,7 @@ class Service:
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
-            await handler(payload, conversation_id)
+            await handler(payload, conversation_id, meta)
         else:
             await self.log(
                 ERROR,
@@ -544,6 +565,7 @@ class Service:
         conversation_id: str,
         reply_to: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming commands (may be overwriten by subclasses).
 
@@ -558,7 +580,7 @@ class Service:
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
-            await handler(payload, conversation_id, reply_to, correlation_id)
+            await handler(payload, conversation_id, reply_to, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log(
@@ -574,6 +596,7 @@ class Service:
         conversation_id: str,
         status: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming result (may be overwritten by subclasses).
 
@@ -588,7 +611,7 @@ class Service:
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
-            await handler(payload, conversation_id, status, correlation_id)
+            await handler(payload, conversation_id, status, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             await self.log(
