@@ -112,7 +112,7 @@ class STDataStore:
         sentinel = redis.sentinel.Sentinel(
             hosts, db=database, password=password, health_check_interval=HCI
         )
-        return cls(sentinel.master_for(redis_service_name), namespace, ttl)
+        return cls(sentinel.master_for(redis_service_name), namespace, ttl)  # type: ignore
 
     def _absolute(self, name):
         """Convert local name to absolute"""
