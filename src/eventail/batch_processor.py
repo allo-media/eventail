@@ -37,7 +37,7 @@ Service = Union[AioService, PikaService]
 class Batch:
     """A class for batch processing of events.
 
-    You can instantiace as many Batch as you need.
+    You can instantiate as many Batch as you need.
     You can't use Batch for Commands or Results.
     """
 
