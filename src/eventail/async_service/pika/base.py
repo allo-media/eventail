@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2019 Groupe Allo-Media
+# Copyright (c) 2018-2021 Groupe Allo-Media
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -903,9 +903,14 @@ class Service(object):
         """
         self._emit(self.EVENT_EXCHANGE, event, message, conversation_id, mandatory)
 
-    def call_later(self, delay: int, callback: Callable) -> None:
-        """Call `callback` after `delay` seconds."""
-        self._connection.ioloop.call_later(delay, callback)
+    def call_later(self, delay: float, callback: Callable) -> object:
+        """Call `callback` after `delay` seconds.
+
+        Return a handle that can be passed to `self.cancel_timer()`"""
+        return self._connection.ioloop.call_later(delay, callback)
+
+    def cancel_timer(self, timer: object) -> None:
+        self._connection.ioloop.remove_timeout(timer)
 
     def run(self) -> None:
         """Run the service by connecting to RabbitMQ and then

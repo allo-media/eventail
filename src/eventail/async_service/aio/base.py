@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2019 Groupe Allo-Media
+# Copyright (c) 2018-2021 Groupe Allo-Media
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    cast,
 )
 from urllib.parse import urlencode
 
@@ -100,8 +101,8 @@ class Service:
         self._connection: aiormq.Connection
         self._channel: aiormq.Channel
         self._log_channel: aiormq.Channel
-        self._event_consumer_tag: str
-        self._command_consumer_tag: str
+        self._event_consumer_tag: str = ""
+        self._command_consumer_tag: str = ""
 
         for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
             self.loop.add_signal_handler(s, lambda: self.create_task(self.stop()))
@@ -116,14 +117,16 @@ class Service:
 
         properties = message.header.properties
 
-        headers: Dict[str, str] = properties.headers
+        headers: Dict[str, Any] = properties.headers or {}
         decoder = cbor if properties.content_type == "application/cbor" else json
-        routing_key: str = message.delivery.routing_key
-        exchange: str = message.delivery.exchange
+        delivery = cast(spec.Basic.Deliver, message.delivery)  # for mypy
+        assert delivery.routing_key is not None  # for mypy
+        routing_key: str = delivery.routing_key
+        exchange: str = delivery.exchange
         if headers is None or "conversation_id" not in headers:
             self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
-            message.channel.basic_nack(message.delivery.delivery_tag, requeue=False)
+            message.channel.basic_nack(delivery.delivery_tag, requeue=False)  # type: ignore
             return
         conversation_id = headers.pop("conversation_id")
         try:
@@ -135,9 +138,7 @@ class Service:
                 conversation_id=conversation_id,
             )
             # Unrecoverable, put to dead letter
-            await message.channel.basic_nack(
-                message.delivery.delivery_tag, requeue=False
-            )
+            await message.channel.basic_nack(delivery.delivery_tag, requeue=False)  # type: ignore
             return
 
         # meta
@@ -148,6 +149,7 @@ class Service:
 
         if exchange == self.CMD_EXCHANGE:
             correlation_id = properties.correlation_id
+            assert correlation_id is not None  # for mypy
             reply_to = properties.reply_to
             status = headers.pop("status", "") if headers else ""
             if not (reply_to or status):
@@ -157,14 +159,12 @@ class Service:
                     conversation_id=conversation_id,
                 )
                 # Unrecoverable, put to dead letter
-                await message.channel.basic_nack(
-                    message.delivery.delivery_tag, requeue=False
-                )
+                await message.channel.basic_nack(delivery.delivery_tag, requeue=False)  # type: ignore
                 return
             if reply_to:
                 async with self.ack_policy(
                     message.channel,
-                    message.delivery,
+                    delivery,
                     conversation_id,
                     reply_to,
                     correlation_id,
@@ -180,7 +180,7 @@ class Service:
             else:
                 async with self.ack_policy(
                     message.channel,
-                    message.delivery,
+                    delivery,
                     conversation_id,
                     reply_to,
                     correlation_id,
@@ -195,7 +195,7 @@ class Service:
                     )
         else:
             async with self.ack_policy(
-                message.channel, message.delivery, conversation_id, "", ""
+                message.channel, delivery, conversation_id, "", ""
             ):
                 await self.handle_event(
                     routing_key, payload, conversation_id, meta=headers
@@ -222,7 +222,7 @@ class Service:
             )
             # retry once
             if not deliver.redelivered:
-                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
+                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)  # type: ignore
             else:
                 # dead letter
                 await self.log(
@@ -231,9 +231,9 @@ class Service:
                     error,
                     conversation_id=conversation_id,
                 )
-                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
+                await ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)  # type: ignore
         else:
-            await ch.basic_ack(delivery_tag=deliver.delivery_tag)
+            await ch.basic_ack(delivery_tag=deliver.delivery_tag)  # type: ignore
 
     async def _emit(
         self,
@@ -297,7 +297,7 @@ class Service:
         while not (connected or self.stopped.is_set()):
             try:
                 connection = await aiormq.connect(
-                    self._urls[url_idx] + hb_query, loop=self.loop
+                    self._urls[url_idx] + hb_query, loop=self.loop  # type: ignore
                 )
             except ConnectionError as e:
                 if e.errno == 111:
@@ -312,12 +312,12 @@ class Service:
             url_idx = (url_idx + 1) % len(self._urls)
         if not connected:
             return
-        self._connection = connection
+        self._connection = connection  # type: ignore
         connection.closing.add_done_callback(self.on_connection_closed)
 
         # Creating channels
-        self._channel = await connection.channel(publisher_confirms=True)
-        self._log_channel = await connection.channel(publisher_confirms=False)
+        self._channel = await connection.channel(publisher_confirms=True)  # type: ignore
+        self._log_channel = await connection.channel(publisher_confirms=False)  # type: ignore
         await self._channel.basic_qos(prefetch_count=self.PREFETCH_COUNT)
         # setup exchanges
         await self._channel.exchange_declare(
@@ -345,11 +345,11 @@ class Service:
             )
             for key in self._event_routing_keys:
                 await self._channel.queue_bind(
-                    events_ok.queue, self.EVENT_EXCHANGE, routing_key=key
+                    events_ok.queue, self.EVENT_EXCHANGE, routing_key=key  # type: ignore
                 )
             # returns ConsumeOK, which has consumer_tag attribute
-            res = await self._channel.basic_consume(events_ok.queue, self.on_message)
-            self._event_consumer_tag = res.consumer_tag
+            res = await self._channel.basic_consume(events_ok.queue, self.on_message)  # type: ignore
+            self._event_consumer_tag = res.consumer_tag  # type: ignore
 
         if self._command_routing_keys:
             cmds_ok = await self._channel.queue_declare(
@@ -359,10 +359,10 @@ class Service:
             )
             for key in self._command_routing_keys:
                 await self._channel.queue_bind(
-                    cmds_ok.queue, self.CMD_EXCHANGE, routing_key=key
+                    cmds_ok.queue, self.CMD_EXCHANGE, routing_key=key  # type: ignore
                 )
-            res = await self._channel.basic_consume(cmds_ok.queue, self.on_message)
-            self._command_consumer_tag = res.consumer_tag
+            res = await self._channel.basic_consume(cmds_ok.queue, self.on_message)  # type: ignore
+            self._command_consumer_tag = res.consumer_tag  # type: ignore
         await self.on_ready()
 
     # Public API
@@ -396,8 +396,10 @@ class Service:
             self.stopped.set()
             return
         await self.log(WARNING, "Shutting down…")
-        await self._channel.basic_cancel(self._event_consumer_tag)
-        await self._channel.basic_cancel(self._command_consumer_tag)
+        if self._event_consumer_tag:
+            await self._channel.basic_cancel(self._event_consumer_tag)
+        if self._command_consumer_tag:
+            await self._channel.basic_cancel(self._command_consumer_tag)
         # wait for ongoing publishings?
         await asyncio.sleep(3, loop=self.loop)
         await self._connection.close()
@@ -528,9 +530,15 @@ class Service:
             self.EVENT_EXCHANGE, event, message, conversation_id, mandatory
         )
 
-    def create_task(self, coro: Coroutine) -> Coroutine:
+    def create_task(self, coro: Coroutine) -> aiormq.base.TaskType:
         """Launch a task."""
         return getattr(self, "_channel", asyncio).create_task(coro)
+
+    def call_later(self, delay: float, callback: Callable) -> asyncio.TimerHandle:
+        return self.loop.call_later(delay, callback)
+
+    def cancel_timer(self, timer: asyncio.TimerHandle) -> None:
+        timer.cancel()
 
     async def handle_event(
         self,
