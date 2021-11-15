@@ -592,7 +592,7 @@ class Service(object):
             # unrecoverable error, send to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
             return
-        conversation_id = headers["conversation_id"]
+        conversation_id = headers.pop("conversation_id")
 
         try:
             payload: JSON_MODEL = decoder.loads(body) if body else None
@@ -607,10 +607,16 @@ class Service(object):
             return
         LOGGER.info("Received message from %s: %s", exchange, routing_key)
 
+        # meta
+        headers["timestamp"] = properties.timestamp
+        headers["expiration"] = properties.expiration
+        headers["user_id"] = properties.user_id
+        headers["app_id"] = properties.app_id
+
         if exchange == self.CMD_EXCHANGE:
             correlation_id = properties.correlation_id
             reply_to = properties.reply_to
-            status = headers.get("status", "") if headers else ""
+            status = headers.pop("status", "") if headers else ""
             if not (reply_to or status):
                 self.log(
                     EMERGENCY,
@@ -627,18 +633,28 @@ class Service(object):
                     ch, basic_deliver, conversation_id, reply_to, correlation_id
                 ):
                     self.handle_command(
-                        routing_key, payload, conversation_id, reply_to, correlation_id
+                        routing_key,
+                        payload,
+                        conversation_id,
+                        reply_to,
+                        correlation_id,
+                        meta=headers,
                     )
             else:
                 with self.ack_policy(
                     ch, basic_deliver, conversation_id, reply_to, correlation_id
                 ):
                     self.handle_result(
-                        routing_key, payload, conversation_id, status, correlation_id
+                        routing_key,
+                        payload,
+                        conversation_id,
+                        status,
+                        correlation_id,
+                        meta=headers,
                     )
         else:
             with self.ack_policy(ch, basic_deliver, conversation_id, "", ""):
-                self.handle_event(routing_key, payload, conversation_id)
+                self.handle_event(routing_key, payload, conversation_id, meta=headers)
 
     @contextmanager
     def ack_policy(
@@ -929,7 +945,11 @@ class Service(object):
             LOGGER.info("Stopped")
 
     def handle_event(
-        self, event: str, payload: JSON_MODEL, conversation_id: str
+        self,
+        event: str,
+        payload: JSON_MODEL,
+        conversation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming event (may be overwritten by subclasses).
 
@@ -942,7 +962,7 @@ class Service(object):
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
-            handler(payload, conversation_id)
+            handler(payload, conversation_id, meta)
         else:
             self.log(
                 ERROR,
@@ -957,6 +977,7 @@ class Service(object):
         conversation_id: str,
         reply_to: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming commands (may be overwriten by subclasses).
 
@@ -971,7 +992,7 @@ class Service(object):
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
-            handler(payload, conversation_id, reply_to, correlation_id)
+            handler(payload, conversation_id, reply_to, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log(
@@ -987,6 +1008,7 @@ class Service(object):
         conversation_id: str,
         status: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ) -> None:
         """Handle incoming result (may be overwritten by subclasses).
 
@@ -1001,7 +1023,7 @@ class Service(object):
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
-            handler(payload, conversation_id, status, correlation_id)
+            handler(payload, conversation_id, status, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log(

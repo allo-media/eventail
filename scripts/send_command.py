@@ -63,6 +63,7 @@ class RPC(Service):
         conversation_id: str,
         status: str,
         correlation_id: str,
+        meta: Dict[str, str],
     ):
         if correlation_id == "1":
             print("Correlation ID is O.K.")
@@ -72,6 +73,7 @@ class RPC(Service):
             print("Success!")
         else:
             print("Error!")
+        print("Metadata:", meta)
         pprint.pprint(payload)
         self.stop()
 

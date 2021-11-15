@@ -36,7 +36,7 @@ class MinuteClock(Service):
     def on_ready(self):
         self.healthcheck()
 
-    def on_SecondTicked(self, payload, conversation_id):
+    def on_SecondTicked(self, payload, conversation_id, _meta):
         dtime = datetime.datetime.fromtimestamp(payload["unix_time"])
         if self.last_time is None or self.last_time.minute != dtime.minute:
             self.publish_event(
