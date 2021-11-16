@@ -43,8 +43,8 @@ class MinuteClock(Service):
     async def on_ready(self):
         self.create_task(self.healthcheck())
 
-    async def on_SecondTicked(self, payload, conversation_id, _meta):
-        self.batch.push(payload, conversation_id)
+    async def on_SecondTicked(self, payload, conversation_id, meta):
+        self.batch.push(payload, conversation_id, meta)
 
     # The Batch callback is a plain python function that should return immediatly
     # so we spawn a task to do the async I/O
@@ -52,17 +52,14 @@ class MinuteClock(Service):
         self.create_task(self._publish_minute(seconds.copy()))
 
     async def _publish_minute(self, seconds):
-        if len(seconds) == 60:
-            last_p, last_c = seconds[-1]
-            dtime = datetime.datetime.fromtimestamp(last_p["unix_time"])
-            await self.publish_event(
-                "MinuteTicked", {"iso_time": dtime.isoformat()}, last_c
+        if seconds:
+            out_event = (
+                "MinuteTicked" if len(seconds) == 60 else "IncompleteMinuteTicked"
             )
-        elif seconds:
-            last_p, last_c = seconds[-1]
-            dtime = datetime.datetime.fromtimestamp(last_p["unix_time"])
+            last_event = seconds[-1]
+            dtime = datetime.datetime.fromtimestamp(last_event.payload["unix_time"])
             await self.publish_event(
-                "IncompleteMinuteTicked", {"iso_time": dtime.isoformat()}, last_c
+                out_event, {"iso_time": dtime.isoformat()}, last_event.conversation_id
             )
 
     async def healthcheck(self):

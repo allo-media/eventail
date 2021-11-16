@@ -41,19 +41,18 @@ class MinuteClock(Service):
     def on_ready(self):
         self.healthcheck()
 
-    def on_SecondTicked(self, payload, conversation_id, _meta):
-        self.batch.push(payload, conversation_id)
+    def on_SecondTicked(self, payload, conversation_id, meta):
+        self.batch.push(payload, conversation_id, meta)
 
     def minute(self, seconds):
-        if len(seconds) == 60:
-            last_p, last_c = seconds[-1]
-            dtime = datetime.datetime.fromtimestamp(last_p["unix_time"])
-            self.publish_event("MinuteTicked", {"iso_time": dtime.isoformat()}, last_c)
-        elif seconds:
-            last_p, last_c = seconds[-1]
-            dtime = datetime.datetime.fromtimestamp(last_p["unix_time"])
+        if seconds:
+            out_event = (
+                "MinuteTicked" if len(seconds) == 60 else "IncompleteMinuteTicked"
+            )
+            last_event = seconds[-1]
+            dtime = datetime.datetime.fromtimestamp(last_event.payload["unix_time"])
             self.publish_event(
-                "IncompleteMinuteTicked", {"iso_time": dtime.isoformat()}, last_c
+                out_event, {"iso_time": dtime.isoformat()}, last_event.conversation_id
             )
 
     def healthcheck(self):
