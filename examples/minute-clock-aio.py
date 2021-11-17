@@ -22,10 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+import asyncio
 import datetime
 import sys
 
-from eventail.async_service.pika import Service, ReconnectingSupervisor
+import uvloop
+from eventail.async_service.aio import Service
 from eventail.batch_processor import Batch
 from eventail.log_criticity import NOTICE
 
@@ -38,34 +40,40 @@ class MinuteClock(Service):
         super().__init__(*args, **kwargs)
         self.batch = Batch(self, 60, 61, self.minute)
 
-    def on_ready(self):
-        self.healthcheck()
+    async def on_ready(self):
+        self.create_task(self.healthcheck())
 
-    def on_SecondTicked(self, payload, conversation_id, meta):
+    async def on_SecondTicked(self, payload, conversation_id, meta):
         self.batch.push(payload, conversation_id, meta)
 
+    # The Batch callback is a plain python function that should return immediatly
+    # so we spawn a task to do the async I/O
     def minute(self, seconds):
+        self.create_task(self._publish_minute(seconds.copy()))
+
+    async def _publish_minute(self, seconds):
         if seconds:
             out_event = (
                 "MinuteTicked" if len(seconds) == 60 else "IncompleteMinuteTicked"
             )
             last_event = seconds[-1]
             dtime = datetime.datetime.fromtimestamp(last_event.payload["unix_time"])
-            self.publish_event(
+            await self.publish_event(
                 out_event, {"iso_time": dtime.isoformat()}, last_event.conversation_id
             )
 
-    def healthcheck(self):
-        self.log(NOTICE, "I'm fine!")
-        self.call_later(60, self.healthcheck)
+    async def healthcheck(self):
+        while True:
+            await self.log(NOTICE, "I'm fine!")
+            await asyncio.sleep(60)
 
 
 if __name__ == "__main__":
 
+    uvloop.install()
     urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
-    minute_clock = ReconnectingSupervisor(
-        MinuteClock, urls, ["SecondTicked"], [], "minute"
-    )
+
+    loop = asyncio.get_event_loop()
+    service = MinuteClock(urls, ["SecondTicked"], [], "minute", loop=loop)
     print("To exit press CTRL+C")
-    minute_clock.run()
-    print("Bye!")
+    loop.run_until_complete(service.run())  # auto reconnect is built-in

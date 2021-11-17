@@ -118,4 +118,4 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     service = Ping(urls, service_name, loop=loop)
     print("To exit press CTRL+C")
-    loop.run_until_complete(service.run())  # auto reconnect in built-in
+    loop.run_until_complete(service.run())  # auto reconnect is built-in

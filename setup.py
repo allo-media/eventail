@@ -27,7 +27,7 @@ setup(
     scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py",
              "scripts/inspect_queue.py", "scripts/resurrect.py"],
     install_requires=[
-        "pika",
+        "pika>=1.2.0",
         "cbor",
         "redis"
     ],
