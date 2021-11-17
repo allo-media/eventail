@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # MIT License
 #
@@ -22,53 +23,57 @@
 # SOFTWARE.
 #
 import asyncio
+import datetime
 import sys
 
 import uvloop
 from eventail.async_service.aio import Service
-from eventail.log_criticity import INFO, NOTICE
+from eventail.batch_processor import Batch
+from eventail.log_criticity import NOTICE
 
 
-class EchoService(Service):
+class MinuteClock(Service):
 
-    PREFETCH_COUNT = 10
-    RETRY_DELAY = 2
-    HEARTBEAT = 120
+    last_time = None
 
-    async def on_EchoMessage(
-        self, message, conversation_id, reply_to, correlation_id, _meta
-    ):
-        assert "message" in message, "missing key 'message' in message!"
-        await self.log(INFO, f"Echoing {message}", conversation_id=conversation_id)
-        try:
-            await self.return_success(
-                reply_to, message, conversation_id, correlation_id, mandatory=True
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.batch = Batch(self, 60, 61, self.minute)
+
+    async def on_ready(self):
+        self.create_task(self.healthcheck())
+
+    async def on_SecondTicked(self, payload, conversation_id, meta):
+        self.batch.push(payload, conversation_id, meta)
+
+    # The Batch callback is a plain python function that should return immediatly
+    # so we spawn a task to do the async I/O
+    def minute(self, seconds):
+        self.create_task(self._publish_minute(seconds.copy()))
+
+    async def _publish_minute(self, seconds):
+        if seconds:
+            out_event = (
+                "MinuteTicked" if len(seconds) == 60 else "IncompleteMinuteTicked"
             )
-        except ValueError:
-            await self.log(
-                "Error", f"Unroutable {reply_to}", conversation_id=conversation_id
+            last_event = seconds[-1]
+            dtime = datetime.datetime.fromtimestamp(last_event.payload["unix_time"])
+            await self.publish_event(
+                out_event, {"iso_time": dtime.isoformat()}, last_event.conversation_id
             )
 
-    async def on_ShutdownStarted(self, payload, conversation_id):
-        await self.log(INFO, "Received signal for shutdown.")
-        await self.stop()
-
-    async def healthcheck(self) -> None:
+    async def healthcheck(self):
         while True:
             await self.log(NOTICE, "I'm fine!")
             await asyncio.sleep(60)
 
-    async def on_ready(self) -> None:
-        self.create_task(self.healthcheck())
-
 
 if __name__ == "__main__":
+
     uvloop.install()
-    urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
+    urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
 
     loop = asyncio.get_event_loop()
-    service = EchoService(
-        urls, ["ShutdownStarted"], ["pong.EchoMessage"], "pong", loop=loop
-    )
+    service = MinuteClock(urls, ["SecondTicked"], [], "minute", loop=loop)
     print("To exit press CTRL+C")
-    loop.run_until_complete(service.run())  # auto reconnect in built-in
+    loop.run_until_complete(service.run())  # auto reconnect is built-in

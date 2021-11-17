@@ -51,7 +51,7 @@ class Ping(Service):
         self.healthcheck()
         self.ping()
 
-    def on_EchoReturn(self, payload, conversation_id, status, correlation_id):
+    def on_EchoReturn(self, payload, conversation_id, status, correlation_id, _meta):
         self.log(
             INFO,
             "Got echo: {} {}".format(payload, correlation_id),

@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='eventail',
-    version='1.5.4',
+    version='2.0.0',
     url='https://github.com/allo-media/eventail',
     author='Allo-Media',
     author_email='dev@allo-media.fr',
@@ -27,7 +27,7 @@ setup(
     scripts=["scripts/logger.py", "scripts/monitor.py", "scripts/publish_event.py", "scripts/send_command.py",
              "scripts/inspect_queue.py", "scripts/resurrect.py"],
     install_requires=[
-        "pika",
+        "pika>=1.2.0",
         "cbor",
         "redis"
     ],

@@ -26,6 +26,7 @@ import datetime
 import sys
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
+from eventail.batch_processor import Batch
 from eventail.log_criticity import NOTICE
 
 
@@ -33,16 +34,26 @@ class MinuteClock(Service):
 
     last_time = None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.batch = Batch(self, 60, 61, self.minute)
+
     def on_ready(self):
         self.healthcheck()
 
-    def on_SecondTicked(self, payload, conversation_id):
-        dtime = datetime.datetime.fromtimestamp(payload["unix_time"])
-        if self.last_time is None or self.last_time.minute != dtime.minute:
-            self.publish_event(
-                "MinuteTicked", {"iso_time": dtime.isoformat()}, conversation_id
+    def on_SecondTicked(self, payload, conversation_id, meta):
+        self.batch.push(payload, conversation_id, meta)
+
+    def minute(self, seconds):
+        if seconds:
+            out_event = (
+                "MinuteTicked" if len(seconds) == 60 else "IncompleteMinuteTicked"
             )
-        self.last_time = dtime
+            last_event = seconds[-1]
+            dtime = datetime.datetime.fromtimestamp(last_event.payload["unix_time"])
+            self.publish_event(
+                out_event, {"iso_time": dtime.isoformat()}, last_event.conversation_id
+            )
 
     def healthcheck(self):
         self.log(NOTICE, "I'm fine!")
