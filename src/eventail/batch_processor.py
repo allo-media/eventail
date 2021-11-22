@@ -24,15 +24,18 @@
 
 """Process incoming events in batches."""
 
-
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
-from eventail.async_service.aio import JSON_MODEL
-from eventail.async_service.aio import Service as AioService
-from eventail.async_service.pika import Service as PikaService
+if TYPE_CHECKING:
+    from eventail.async_service.aio import Service as AioService
+    from eventail.async_service.pika import Service as PikaService
 
-Service = Union[AioService, PikaService]
+    Service = Union[AioService, PikaService]
+else:
+    from eventail.async_service.pika import Service
+
+from eventail.async_service.pika import JSON_MODEL
 
 
 @dataclass
