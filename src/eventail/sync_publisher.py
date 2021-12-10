@@ -46,8 +46,10 @@ class Endpoint:
     ID = os.getpid()
     HOSTNAME = socket.gethostname()
     EVENT_EXCHANGE = "events"
+    CONFIGURATION_EXCHANGE = "configurations"
     LOG_EXCHANGE = "logs"
     EVENT_EXCHANGE_TYPE = "topic"
+    CONFIGURATION_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
 
     def __init__(
@@ -73,6 +75,11 @@ class Endpoint:
         )
         self.event_exchange = Exchange(
             self.EVENT_EXCHANGE, type=self.EVENT_EXCHANGE_TYPE, durable=True
+        )
+        self.configuration_exchange = Exchange(
+            self.CONFIGURATION_EXCHANGE,
+            type=self.CONFIGURATION_EXCHANGE_TYPE,
+            durable=True,
         )
         self.log_exchange = Exchange(
             self.LOG_EXCHANGE, self.LOG_EXCHANGE_TYPE, durable=True
@@ -115,6 +122,43 @@ class Endpoint:
                 routing_key=gelf.routing_key,
                 declare=[self.log_exchange],
                 retry=False,
+            )
+
+    def publish_configuration(
+        self,
+        event: str,
+        message: JSON_MODEL,
+        conversation_id: str,
+        max_retries: Optional[int] = None,
+    ) -> None:
+        """Publish a configuration event on the bus.
+
+        The ``event`` is the name of the event,
+        and the `message` is any data conforming to the JSON model.
+        `max_retries` is None by default (retry for ever) but can be an `int`
+        to specify the number of attempts to send the message before the error is raised.
+        The firt retry is immediate, then the interval increases by one second at each step.
+        """
+
+        with producers[self._connection].acquire(block=True, timeout=2) as producer:
+            headers = {"conversation_id": str(conversation_id)}
+            producer.publish(
+                message if self._force_json else cbor.dumps(message),
+                delivery_mode=1,  # not persistent
+                exchange=self.configuration_exchange,
+                routing_key=event,
+                declare=[self.configuration_exchange],
+                headers=headers,
+                content_type=None if self._force_json else "application/cbor",
+                content_encoding=None if self._force_json else "binary",
+                serializer="json" if self._force_json else None,
+                retry=True,
+                retry_policy={
+                    "interval_start": 0,  # First retry immediately,
+                    "interval_step": 1,  # then increase by 1s for every retry.
+                    "interval_max": 30,  # but don't exceed 30s between retries.
+                    "max_retries": max_retries,
+                },
             )
 
     def publish_event(
