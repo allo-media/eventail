@@ -128,7 +128,6 @@ class Endpoint:
         self,
         event: str,
         message: JSON_MODEL,
-        conversation_id: str,
         max_retries: Optional[int] = None,
     ) -> None:
         """Publish a configuration event on the bus.
@@ -141,14 +140,13 @@ class Endpoint:
         """
 
         with producers[self._connection].acquire(block=True, timeout=2) as producer:
-            headers = {"conversation_id": str(conversation_id)}
             producer.publish(
                 message if self._force_json else cbor.dumps(message),
                 delivery_mode=1,  # not persistent
                 exchange=self.configuration_exchange,
                 routing_key=event,
                 declare=[self.configuration_exchange],
-                headers=headers,
+                headers={},
                 content_type=None if self._force_json else "application/cbor",
                 content_encoding=None if self._force_json else "binary",
                 serializer="json" if self._force_json else None,
