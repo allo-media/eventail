@@ -41,6 +41,3 @@ class TestSTDataStore(TestCase):
 
     def test_is_down(self):
         self.assertEqual(self.tmp_store.is_down(), "")
-
-
-
