@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to async-service's documentation!
+Welcome to Eventail's documentation!
 =========================================
 
 ``async-service`` offers base classes for asynchronous services within the Allo-Media event-driven architecture along with debug utilities.
