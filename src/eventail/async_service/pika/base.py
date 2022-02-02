@@ -36,7 +36,16 @@ import signal
 import socket
 import traceback
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Tuple
+)
 
 import cbor
 import pika
@@ -630,7 +639,7 @@ class Service(object):
                 return
             if reply_to:
                 with self.ack_policy(
-                    ch, basic_deliver, conversation_id, reply_to, correlation_id
+                    ch, basic_deliver, conversation_id, correlation_id
                 ):
                     self.handle_command(
                         routing_key,
@@ -642,7 +651,7 @@ class Service(object):
                     )
             else:
                 with self.ack_policy(
-                    ch, basic_deliver, conversation_id, reply_to, correlation_id
+                    ch, basic_deliver, conversation_id, correlation_id
                 ):
                     self.handle_result(
                         routing_key,
@@ -653,7 +662,7 @@ class Service(object):
                         meta=headers,
                     )
         else:
-            with self.ack_policy(ch, basic_deliver, conversation_id, "", ""):
+            with self.ack_policy(ch, basic_deliver, conversation_id, ""):
                 self.handle_event(routing_key, payload, conversation_id, meta=headers)
 
     @contextmanager
@@ -662,7 +671,6 @@ class Service(object):
         ch: pika.channel.Channel,
         deliver: pika.spec.Basic.Deliver,
         conversation_id: str,
-        reply_to: str,
         correlation_id: str,
     ) -> Generator[None, None, None]:
         try:
@@ -798,7 +806,7 @@ class Service(object):
          - `criticity`: int, in the syslog scale
          - `short`: str, short description of log
          - `full`: str, the full message of the log (appears as `message` in Graylog)
-         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
+         - `additional_fields`: Dict, data to be merged into the GELF payload as additional fields
         """
         gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         LOGGER.debug("Application logged: %s\n%s", short, full)
