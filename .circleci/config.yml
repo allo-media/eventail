@@ -1,3 +1,4 @@
+---
 version: 2
 jobs:
   build:
@@ -14,7 +15,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
+            - v1-dependencies-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
 
       - run:
           name: install tox
