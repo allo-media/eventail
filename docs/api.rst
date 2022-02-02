@@ -36,7 +36,7 @@ Depends on the kombu library::
 
 
 .. autoclass:: eventail.sync_publisher.Endpoint
-    :members: __init__, publish_event, log, force_json
+    :members: __init__, publish_configuration, publish_event, log, force_json
 
 
 Shared temporary data store
