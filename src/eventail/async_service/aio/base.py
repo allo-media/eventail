@@ -204,7 +204,7 @@ class Service:
     @asynccontextmanager
     async def ack_policy(
         self,
-        ch: aiormq.Channel,
+        ch: aiormq.abc.AbstractChannel,
         deliver: spec.Basic.Deliver,
         conversation_id: str,
         reply_to: str,
