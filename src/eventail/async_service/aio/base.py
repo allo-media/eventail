@@ -37,7 +37,7 @@ from typing import (
     List,
     Optional,
     Sequence,
-    cast,
+    cast
 )
 from urllib.parse import urlencode
 
@@ -166,7 +166,6 @@ class Service:
                     message.channel,
                     delivery,
                     conversation_id,
-                    reply_to,
                     correlation_id,
                 ):
                     await self.handle_command(
@@ -182,7 +181,6 @@ class Service:
                     message.channel,
                     delivery,
                     conversation_id,
-                    reply_to,
                     correlation_id,
                 ):
                     await self.handle_result(
@@ -195,7 +193,7 @@ class Service:
                     )
         else:
             async with self.ack_policy(
-                message.channel, delivery, conversation_id, "", ""
+                message.channel, delivery, conversation_id, ""
             ):
                 await self.handle_event(
                     routing_key, payload, conversation_id, meta=headers
@@ -204,10 +202,9 @@ class Service:
     @asynccontextmanager
     async def ack_policy(
         self,
-        ch: aiormq.Channel,
+        ch: aiormq.abc.AbstractChannel,
         deliver: spec.Basic.Deliver,
         conversation_id: str,
-        reply_to: str,
         correlation_id: str,
     ) -> AsyncGenerator[None, None]:
         try:
