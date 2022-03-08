@@ -107,6 +107,21 @@ optional arguments:
 ```
 
 ```
+usage: publish_configuration.py [-h] amqp_url event payload
+
+Publish a configuration event and its payload on the given broker
+
+positional arguments:
+  amqp_url    URL of the broker, including credentials
+  event       Configuration event name
+  payload     The path to the file containing the payload, in JSON or
+              CBOR format (from file extension).
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+```
 send_command.py --help
 usage: send_command.py [-h] amqp_url command payload
 
