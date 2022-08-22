@@ -123,6 +123,7 @@ class Service(object):
         self._connection: pika.SelectConnection
         self._channel: pika.channel.Channel
         self._log_channel: pika.channel.Channel
+        self._configured = not config_routing_keys
 
         for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
             signal.signal(s, lambda _s, _f: self.stop())
@@ -501,23 +502,28 @@ class Service(object):
         LOGGER.info("Issuing consumer related RPC commands")
         self.add_on_cancel_callback()
         self.add_on_return_callback()
-        if self._event_routing_keys:
-            self._event_consumer_tag = self._channel.basic_consume(
-                self._event_queue, self.on_message
-            )
-            self._consuming = True
-        if self._command_routing_keys:
-            self._command_consumer_tag = self._channel.basic_consume(
-                self._command_queue, self.on_message
-            )
-            self._consuming = True
-        if self._config_routing_keys:
+        if self._configured:
+            LOGGER.info("Consuming business events")
+            if self._event_routing_keys:
+                self._event_consumer_tag = self._channel.basic_consume(
+                    self._event_queue, self.on_message
+                )
+                self._consuming = True
+            if self._command_routing_keys:
+                self._command_consumer_tag = self._channel.basic_consume(
+                    self._command_queue, self.on_message
+                )
+                self._consuming = True
+            self.on_ready()
+        else:
+            LOGGER.info("Consuming configuration events")
             self._config_consumer_tag = self._channel.basic_consume(
                 self._config_queue, self.on_message
             )
             self._consuming = True
+            self.on_unconfigured()
+            LOGGER.info("Waiting for configuration")
         self.was_consuming = True
-        self.on_ready()
 
     def add_on_cancel_callback(self) -> None:
         """Add a callback that will be invoked if RabbitMQ cancels the consumer
@@ -682,7 +688,10 @@ class Service(object):
                 self.handle_event(routing_key, payload, conversation_id, meta=headers)
         else:
             with self.ack_policy(ch, basic_deliver, "", ""):
-                self.handle_config(routing_key, payload, meta=headers)
+                configured = self.handle_config(routing_key, payload, meta=headers)
+                if configured and not self._configured:
+                    self._configured = True
+                    self.start_consuming()
 
     @contextmanager
     def ack_policy(
@@ -1078,21 +1087,26 @@ class Service(object):
 
     def handle_config(
         self, configuration: str, payload: JSON_MODEL, meta: Dict[str, str]
-    ) -> None:
+    ) -> bool:
         """Handle incoming configuration (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
         You should never do any filtering here: use the routing keys intead (see ``__init__()``).
 
         ``configuration`` is the routing key.
+
+        This callback must return a boolean flag to tell Eventail whether the service configuration is done
+        and that the service can now process business events.
+
         The default implementation dispatches the messages by calling methods in the form
-        ``self.on_KEY(payload)`` where key is the routing key.
+        ``self.on_KEY(payload) -> bool`` where key is the routing key.
         """
         handler = getattr(self, "on_" + configuration)
         if handler is not None:
-            handler(payload, meta)
+            return handler(payload, meta)
         else:
             self.log(ERROR, "unexpected result {key}; check your subscriptions!")
+            return False
 
     # Abstract methods
 
@@ -1108,7 +1122,18 @@ class Service(object):
         pass
 
     def on_ready(self) -> None:
-        """Code to execute once the service comes online.
+        """Code to execute once the business service is configured and comes online.
+
+        (to be implemented by subclasses)
+        """
+        pass
+
+    def on_unconfigured(self) -> None:
+        """This handler is called when the service needs to be configured before it comes online.
+
+        This callack is invoked only if there are configuration subscriptions (at least one).
+
+        It is typically used to publish one or more configuration requests on the EDA configuration bus.
 
         (to be implemented by subclasses)
         """
