@@ -36,16 +36,7 @@ import signal
 import socket
 import traceback
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Tuple
-)
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple
 
 import cbor
 import pika
@@ -82,9 +73,11 @@ class Service(object):
     EVENT_EXCHANGE = "events"
     CMD_EXCHANGE = "commands"
     LOG_EXCHANGE = "logs"
+    CONFIG_EXCHANGE = "configurations"
     EVENT_EXCHANGE_TYPE = "topic"
     CMD_EXCHANGE_TYPE = "topic"
     LOG_EXCHANGE_TYPE = "topic"
+    CONFIG_EXCHANGE_TYPE = "topic"
     RETRY_DELAY = 15  # in seconds
     #: Heartbeat interval, must be superior to the expected blocking processing time (in seconds).
     #: Beware that the actual delay is negotiated with the broker, and the lower value is taken, so
@@ -94,7 +87,9 @@ class Service(object):
     #: We can specify a timeout if it is not acceptable to the service (in seconds)
     BLOCKED_TIMEOUT = 3600
     #: In production, experiment with higher prefetch values
-    #: for higher consumer throughput
+    #: for higher consumer throughput. As rule of thumb, you can set it to the number
+    #: of messages the service can process whithin one second, as long as they can fit
+    #: easily in memory.
     PREFETCH_COUNT = 3
 
     def __init__(
@@ -103,6 +98,7 @@ class Service(object):
         event_routing_keys: Sequence[str],
         command_routing_keys: Sequence[str],
         logical_service: str,
+        config_routing_keys: Sequence[str] = [],
     ) -> None:
         """Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -115,10 +111,12 @@ class Service(object):
         self._urls = amqp_urls
         self._event_routing_keys = event_routing_keys
         self._command_routing_keys = command_routing_keys
+        self._config_routing_keys = config_routing_keys
         self.logical_service = logical_service
         self.url_idx = 0
         self._event_queue = logical_service + ".events"
         self._command_queue = logical_service + ".commands"
+        self._config_queue = ""  # no name yet, as it is an exclusive queue
         self.exclusive_queues = False
         self._serialize: Callable[..., bytes] = cbor.dumps
         self._mime_type = "application/cbor"
@@ -130,8 +128,10 @@ class Service(object):
             signal.signal(s, lambda _s, _f: self.stop())
 
     def reset_connection_state(self) -> None:
-        self._bind_count = (len(self._event_routing_keys) or 1) + (
-            len(self._command_routing_keys) or 1
+        self._bind_count = (
+            (len(self._event_routing_keys) or 1)
+            + (len(self._command_routing_keys) or 1)
+            + (len(self._config_routing_keys) or 1)
         )
         self.should_reconnect = False
         self.was_consuming = False
@@ -139,6 +139,7 @@ class Service(object):
         self._closing = False
         self._event_consumer_tag: Optional[str] = None
         self._command_consumer_tag: Optional[str] = None
+        self._config_consumer_tag: Optional[str] = None
         self._consuming = False
 
         # for events publishing only
@@ -258,9 +259,13 @@ class Service(object):
             self._channel = channel
             self.setup_exchange(self.EVENT_EXCHANGE, self.EVENT_EXCHANGE_TYPE, channel)
             self.setup_exchange(self.CMD_EXCHANGE, self.CMD_EXCHANGE_TYPE, channel)
+            self.setup_exchange(
+                self.CONFIG_EXCHANGE, self.CONFIG_EXCHANGE_TYPE, channel
+            )
         else:
             self._log_channel = channel
             self.setup_exchange(self.LOG_EXCHANGE, self.LOG_EXCHANGE_TYPE, channel)
+
         self.add_on_channel_close_callback(channel)
 
     def add_on_channel_close_callback(self, channel: pika.channel.Channel) -> None:
@@ -324,6 +329,8 @@ class Service(object):
             and self._event_routing_keys
             or exchange_name == self.CMD_EXCHANGE
             and self._command_routing_keys
+            or exchange_name == self.CONFIG_EXCHANGE
+            and self._config_routing_keys
         ):
             self.setup_queue(exchange_name)
         elif exchange_name != self.LOG_EXCHANGE:
@@ -340,9 +347,9 @@ class Service(object):
 
         """
         cb = functools.partial(self.on_queue_declareok, exchange_name=exchange_name)
-        if self.exclusive_queues:
+        if self.exclusive_queues or exchange_name == self.CONFIG_EXCHANGE:
             LOGGER.info("Declaring exclusive on exchange %s", exchange_name)
-            self._channel.queue_declare("", exclusive=True, callback=cb)
+            self._channel.queue_declare("", exclusive=True, durable=False, callback=cb)
         else:
             queue = (
                 self._event_queue
@@ -367,9 +374,12 @@ class Service(object):
         if exchange_name == self.EVENT_EXCHANGE:
             routing_keys = self._event_routing_keys
             self._event_queue = queue_name
-        else:
+        elif exchange_name == self.CMD_EXCHANGE:
             routing_keys = self._command_routing_keys
             self._command_queue = queue_name
+        else:
+            routing_keys = self._config_routing_keys
+            self._config_queue = queue_name
         LOGGER.info("Binding %s to %s with %s", exchange_name, queue_name, routing_keys)
         for key in routing_keys:
             self._channel.queue_bind(
@@ -471,8 +481,7 @@ class Service(object):
         for i in confirm_range:
             del self._deliveries[i]
         LOGGER.info(
-            "Published %i messages, %i have yet to be confirmed, "
-            "%i were acked and %i were nacked",
+            "Published %i messages, %i have yet to be confirmed, %i were acked and %i were nacked",
             self._message_number,
             len(self._deliveries),
             self._acked,
@@ -500,6 +509,11 @@ class Service(object):
         if self._command_routing_keys:
             self._command_consumer_tag = self._channel.basic_consume(
                 self._command_queue, self.on_message
+            )
+            self._consuming = True
+        if self._config_routing_keys:
+            self._config_consumer_tag = self._channel.basic_consume(
+                self._config_queue, self.on_message
             )
             self._consuming = True
         self.was_consuming = True
@@ -596,12 +610,14 @@ class Service(object):
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
-        if headers is None or "conversation_id" not in headers:
+        if exchange != self.CONFIG_EXCHANGE and (
+            headers is None or "conversation_id" not in headers
+        ):
             self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
             return
-        conversation_id = headers.pop("conversation_id")
+        conversation_id = headers.pop("conversation_id", "")
 
         try:
             payload: JSON_MODEL = decoder.loads(body) if body else None
@@ -661,9 +677,12 @@ class Service(object):
                         correlation_id,
                         meta=headers,
                     )
-        else:
+        elif exchange == self.EVENT_EXCHANGE:
             with self.ack_policy(ch, basic_deliver, conversation_id, ""):
                 self.handle_event(routing_key, payload, conversation_id, meta=headers)
+        else:
+            with self.ack_policy(ch, basic_deliver, "", ""):
+                self.handle_config(routing_key, payload, meta=headers)
 
     @contextmanager
     def ack_policy(
@@ -911,6 +930,18 @@ class Service(object):
         """
         self._emit(self.EVENT_EXCHANGE, event, message, conversation_id, mandatory)
 
+    def publish_configuration(
+        self,
+        event: str,
+        message: JSON_MODEL,
+    ) -> None:
+        """Publish a configuration on the bus.
+
+        The ``event`` is the name of the configuration event,
+        and the `message` is any data conforming to the JSON model.
+        """
+        self._emit(self.CONFIG_EXCHANGE, event, message, "", False)
+
     def call_later(self, delay: float, callback: Callable) -> object:
         """Call `callback` after `delay` seconds.
 
@@ -1044,6 +1075,24 @@ class Service(object):
                 f"unexpected result {key}; check your subscriptions!",
                 conversation_id=conversation_id,
             )
+
+    def handle_config(
+        self, configuration: str, payload: JSON_MODEL, meta: Dict[str, str]
+    ) -> None:
+        """Handle incoming configuration (may be overwritten by subclasses).
+
+        The `payload` is already decoded and is a python data structure compatible with the JSON data model.
+        You should never do any filtering here: use the routing keys intead (see ``__init__()``).
+
+        ``configuration`` is the routing key.
+        The default implementation dispatches the messages by calling methods in the form
+        ``self.on_KEY(payload)`` where key is the routing key.
+        """
+        handler = getattr(self, "on_" + configuration)
+        if handler is not None:
+            handler(payload, meta)
+        else:
+            self.log(ERROR, "unexpected result {key}; check your subscriptions!")
 
     # Abstract methods
 
