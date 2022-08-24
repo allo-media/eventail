@@ -1131,7 +1131,7 @@ class Service(object):
     def on_unconfigured(self) -> None:
         """This handler is called when the service needs to be configured before it comes online.
 
-        This callack is invoked only if there are configuration subscriptions (at least one).
+        This callback is invoked only if there are configuration subscriptions (at least one).
 
         It is typically used to publish one or more configuration requests on the EDA configuration bus.
 
