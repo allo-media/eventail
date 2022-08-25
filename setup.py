@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="eventail",
-    version="2.1.2",
+    version="2.2.0",
     url="https://github.com/allo-media/eventail",
     author="Allo-Media",
     author_email="dev@allo-media.fr",
