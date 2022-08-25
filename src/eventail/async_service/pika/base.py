@@ -733,7 +733,11 @@ class Service(object):
         """
         if not (self._channel.is_closed or self._channel.is_closing):
             LOGGER.info("Sending a Basic.Cancel RPC command to RabbitMQ")
-            for consumer_tag in (self._event_consumer_tag, self._command_consumer_tag):
+            for consumer_tag in (
+                self._event_consumer_tag,
+                self._command_consumer_tag,
+                self._config_consumer_tag,
+            ):
                 if consumer_tag is not None:
                     cb = functools.partial(self.on_cancelok, userdata=consumer_tag)
                     self._channel.basic_cancel(consumer_tag, cb)
