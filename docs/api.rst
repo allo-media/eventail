@@ -9,7 +9,7 @@ This module is for *callbacks* style of asynchronous application development.
 We depend on the `pika` library for lower level communication and event loop.
 
 .. autoclass:: eventail.async_service.pika.Service
-   :members: __init__, use_json, use_exclusive_queues, log, send_command, return_success, return_error, publish_event, call_later, run, stop, handle_event, handle_command, handle_result, handle_returned_message, on_ready, PREFETCH_COUNT, RETRY_DELAY, HEARTBEAT, BLOCKED_TIMEOUT
+   :members: __init__, use_json, use_exclusive_queues, log, send_command, return_success, return_error, publish_event, publish_configuration, call_later, run, stop, handle_event, handle_command, handle_config, handle_result, handle_returned_message, on_ready, PREFETCH_COUNT, RETRY_DELAY, HEARTBEAT, BLOCKED_TIMEOUT
 
 .. autoclass:: eventail.async_service.pika.ReconnectingSupervisor
     :members: __init__, run
