@@ -55,11 +55,11 @@ class EchoService(Service):
 
 
 if __name__ == "__main__":
-    # import logging
+    import logging
 
-    # logger = logging.getLogger("async_service")
-    # logger.addHandler(logging.StreamHandler())
-    # logger.setLevel(logging.DEBUG)
+    logger = logging.getLogger("async_service")
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
     urls = sys.argv[1:] if len(sys.argv) > 1 else ["amqp://localhost"]
     echo = ReconnectingSupervisor(EchoService, urls, [], ["pong.EchoMessage"], "pong")
     print("To exit press CTRL+C")

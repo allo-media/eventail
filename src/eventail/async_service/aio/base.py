@@ -37,7 +37,7 @@ from typing import (
     List,
     Optional,
     Sequence,
-    cast
+    cast,
 )
 from urllib.parse import urlencode
 
@@ -124,7 +124,7 @@ class Service:
         routing_key: str = delivery.routing_key
         exchange: str = delivery.exchange
         if headers is None or "conversation_id" not in headers:
-            self.log(EMERGENCY, f"Missing headers on {routing_key}")
+            await self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             message.channel.basic_nack(delivery.delivery_tag, requeue=False)  # type: ignore
             return
@@ -192,9 +192,7 @@ class Service:
                         meta=headers,
                     )
         else:
-            async with self.ack_policy(
-                message.channel, delivery, conversation_id, ""
-            ):
+            async with self.ack_policy(message.channel, delivery, conversation_id, ""):
                 await self.handle_event(
                     routing_key, payload, conversation_id, meta=headers
                 )
@@ -416,7 +414,7 @@ class Service:
          - `criticity`: int, in the syslog scale
          - `short`: str, short description of log
          - `full`: str, the full message of the log (appears as `message` in Graylog)
-         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
+         - `additional_fields`: Dict, data to be merged into the GELF payload as additional fields
         """
         gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
         # no persistent messages, no delivery confirmations

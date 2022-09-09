@@ -100,12 +100,11 @@ class Endpoint:
     ) -> None:
         """Log to the log bus.
 
-
         Parameters:
          - `criticity`: int, in the syslog scale
          - `short`: str, short description of log
          - `full`: str, the full message of the log (appears as `message` in Graylog)
-         - `additional_fields: Dict, data to be merged into the GELF payload as additional fields
+         - `additional_fields`: Dict, data to be merged into the GELF payload as additional fields
         """
         # no persistent messages, no retry
         gelf = GELF(self, criticity, short, full, conversation_id, additional_fields)
