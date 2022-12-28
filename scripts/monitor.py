@@ -134,21 +134,21 @@ if __name__ == "__main__":
     parser.add_argument("amqp_url", help="URL of the broker, including credentials")
     parser.add_argument(
         "--events",
-        help="Event patterns to subscribe to (default to all)",
+        help="Event patterns to subscribe to (default to none)",
         nargs="*",
-        default=["#"],
+        default=["none"],
     )
     parser.add_argument(
         "--commands",
-        help="Command patterns to subscribe to (default to all)",
+        help="Command patterns to subscribe to (default to none)",
         nargs="*",
-        default=["#"],
+        default=["none"],
     )
     parser.add_argument(
         "--configurations",
-        help="Configuration patterns to subscribe to (default to all)",
+        help="Configuration patterns to subscribe to (default to none)",
         nargs="*",
-        default=["#"],
+        default=["none"],
     )
     parser.add_argument(
         "--save", action="store_true", help="save payloads in CBOR format."
