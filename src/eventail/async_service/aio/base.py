@@ -264,7 +264,7 @@ class Service:
                         content_type=self._mime_type,
                         reply_to=reply_to,
                         correlation_id=correlation_id,
-                        headers=headers,
+                        headers=headers, # type: ignore
                     ),
                 )
             except exceptions.DeliveryError as e:
