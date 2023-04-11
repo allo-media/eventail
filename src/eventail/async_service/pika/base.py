@@ -612,13 +612,11 @@ class Service(object):
         :param bytes body: The message body
 
         """
-        headers: HEADER = properties.headers
+        headers: HEADER = properties.headers if properties.headers is not None else {}
         decoder = cbor if properties.content_type == "application/cbor" else json
         routing_key: str = basic_deliver.routing_key
         exchange: str = basic_deliver.exchange
-        if exchange != self.CONFIG_EXCHANGE and (
-            headers is None or "conversation_id" not in headers
-        ):
+        if exchange != self.CONFIG_EXCHANGE and "conversation_id" not in headers:
             self.log(EMERGENCY, f"Missing headers on {routing_key}")
             # unrecoverable error, send to dead letter
             ch.basic_nack(delivery_tag=basic_deliver.delivery_tag, requeue=False)
