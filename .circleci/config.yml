@@ -4,7 +4,7 @@ jobs:
   build:
     docker:
       - image: cimg/python:3.8
-      - image: redis:4.0.11-alpine
+      - image: cimg/redis:5.0
         name: redis
 
     working_directory: ~/async-service
@@ -14,8 +14,7 @@ jobs:
 
       # Download and cache dependencies
       - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
+          key: env-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
 
       - run:
           name: install tox
@@ -23,28 +22,28 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -e .
-            pip install tox==3.25.1
+            pip install tox
+            tox --notest  # Install all tox dependencies
 
       - save_cache:
+          key: env-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
           paths:
             - ./venv
             - .tox
-
-          key: v1-dependencies-{{ checksum "setup.py" }}
 
       # run linters!
       - run:
           name: run linters
           command: |
             . venv/bin/activate
-            tox mypy,flake8
+            tox -e mypy,flake8
 
       # run tests!
       - run:
           name: run tests
           command: |
             . venv/bin/activate
-            tox py3
+            tox -e py3
 
       # test scripts
       - run:
@@ -61,7 +60,7 @@ jobs:
 
   deploy:
     docker:
-      - image: circleci/python:3.8
+      - image: cimg/python:3.8
 
     working_directory: ~/eventail
 
