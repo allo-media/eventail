@@ -136,19 +136,19 @@ if __name__ == "__main__":
         "--events",
         help="Event patterns to subscribe to (default to none)",
         nargs="*",
-        default=["none"],
+        default=[],
     )
     parser.add_argument(
         "--commands",
         help="Command patterns to subscribe to (default to none)",
         nargs="*",
-        default=["none"],
+        default=[],
     )
     parser.add_argument(
         "--configurations",
         help="Configuration patterns to subscribe to (default to none)",
         nargs="*",
-        default=["none"],
+        default=[],
     )
     parser.add_argument(
         "--save", action="store_true", help="save payloads in CBOR format."
