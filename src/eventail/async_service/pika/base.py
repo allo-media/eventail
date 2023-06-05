@@ -136,6 +136,7 @@ class Service(object):
         )
         self.should_reconnect = False
         self.was_consuming = False
+        self._configured = not self._config_routing_keys
 
         self._closing = False
         self._event_consumer_tag: Optional[str] = None
