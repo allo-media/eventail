@@ -54,7 +54,6 @@ HEADER = Dict[str, str]
 
 
 class Service:
-
     ID = os.getpid()
     HOSTNAME = socket.gethostname()
     EVENT_EXCHANGE = "events"
@@ -114,7 +113,6 @@ class Service:
             self.stopped.set()
 
     async def on_message(self, message: DeliveredMessage) -> None:
-
         properties = message.header.properties
 
         headers: Dict[str, Any] = properties.headers or {}
