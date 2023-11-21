@@ -33,7 +33,6 @@ from eventail.log_criticity import NOTICE
 
 
 class MinuteClock(Service):
-
     last_time = None
 
     def __init__(self, *args, **kwargs):
@@ -69,7 +68,6 @@ class MinuteClock(Service):
 
 
 if __name__ == "__main__":
-
     uvloop.install()
     urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
 

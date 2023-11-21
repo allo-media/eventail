@@ -30,7 +30,6 @@ from eventail.log_criticity import INFO, NOTICE
 
 
 class EchoService(Service):
-
     PREFETCH_COUNT = 10
     RETRY_DELAY = 2
     HEARTBEAT = 120

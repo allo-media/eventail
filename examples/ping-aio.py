@@ -44,7 +44,6 @@ MESSAGES = [
 
 
 class Ping(Service):
-
     PREFETCH_COUNT = 10
 
     def __init__(self, url, logical_service, loop=None):
