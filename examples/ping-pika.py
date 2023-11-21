@@ -26,7 +26,9 @@ import sys
 from random import choice
 
 from eventail.async_service.pika import Service, ReconnectingSupervisor
+from eventail.batch_processor import Batch
 from eventail.log_criticity import CRITICAL, INFO, NOTICE
+
 
 MESSAGES = [
     "hello",
@@ -49,13 +51,24 @@ class Ping(Service):
     def on_ready(self):
         self.healthcheck()
         self.ping()
+        self.batch = Batch(self, 10, 2.0, self.process_batch)
 
-    def on_EchoReturn(self, payload, conversation_id, status, correlation_id, _meta):
+    def process_batch(self, events):
+        if not events:
+            return
+        self.log(INFO, f"bulk ack of {len(events)} messages")
+        last_delivery_tag = events[-1].meta["delivery_tag"]
+        self.manual_ack(last_delivery_tag, multiple=True)
+
+    def on_EchoReturn(self, payload, conversation_id, status, correlation_id, meta):
         self.log(
             INFO,
             "Got echo: {} {}".format(payload, correlation_id),
             conversation_id=conversation_id,
         )
+        self.batch.push(payload, conversation_id, meta)
+        # manual ACK
+        return True
 
     def handle_returned_message(self, key, message, envelope):
         self.log(CRITICAL, "unroutable {}.{}.{}".format(key, message, envelope))
