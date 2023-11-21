@@ -163,7 +163,7 @@ class Service(object):
         self.reset_connection_state()
         url = self._urls[self.url_idx]
         self.url_idx = (self.url_idx + 1) % len(self._urls)
-        LOGGER.info("Connecting to %s", url)
+        LOGGER.info("Connecting to %s", url.split("@")[-1])
         connection_params = pika.URLParameters(url)
         connection_params.heartbeat = self.HEARTBEAT
         connection_params.blocked_connection_timeout = self.BLOCKED_TIMEOUT
