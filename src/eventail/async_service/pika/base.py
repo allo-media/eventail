@@ -35,8 +35,8 @@ import os
 import signal
 import socket
 import traceback
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple
+from contextlib import AbstractContextManager
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import cbor
 import pika
@@ -465,9 +465,9 @@ class Service(object):
         LOGGER.info("Received %s for delivery tag: %i", confirmation_type, delivery_tag)
         confirm_range: List[int]
         if multiple:
-            confirm_range = [
-                i for i in sorted(self._deliveries.keys()) if i <= delivery_tag
-            ]
+            # Python dict are sorted by insertion order since version 3.7.
+            # As we insert keys in tag increasing order, we're good.
+            confirm_range = [i for i in self._deliveries.keys() if i <= delivery_tag]
         else:
             confirm_range = [delivery_tag]
         num_confirms = len(confirm_range)
@@ -692,38 +692,14 @@ class Service(object):
                     self._configured = True
                     self.start_consuming()
 
-    @contextmanager
     def ack_policy(
         self,
         ch: pika.channel.Channel,
         deliver: pika.spec.Basic.Deliver,
         conversation_id: str,
         correlation_id: str,
-    ) -> Generator[None, None, None]:
-        try:
-            yield None
-        except Exception:
-            error = traceback.format_exc()
-            self.log(
-                ALERT,
-                f"Unhandled error while processing message {deliver.routing_key}",
-                error,
-                conversation_id=conversation_id,
-            )
-            # retry once
-            if not deliver.redelivered:
-                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
-            else:
-                # dead letter
-                self.log(
-                    EMERGENCY,
-                    f"Giving up on {deliver.routing_key}",
-                    error,
-                    conversation_id=conversation_id,
-                )
-                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
-        else:
-            ch.basic_ack(delivery_tag=deliver.delivery_tag)
+    ) -> "AckPolicy":
+        return AckPolicy(self, ch, deliver, conversation_id, correlation_id)
 
     def stop_consuming(self) -> None:
         """Tell RabbitMQ that you would like to stop consuming by sending the
@@ -1141,3 +1117,51 @@ class Service(object):
         (to be implemented by subclasses)
         """
         pass
+
+
+class AckPolicy(AbstractContextManager):
+    def __init__(
+        self,
+        endpoint: Service,
+        ch: pika.channel.Channel,
+        deliver: pika.spec.Basic.Deliver,
+        conversation_id: str,
+        correlation_id: str,
+    ) -> None:
+        self.endpoint = endpoint
+        self.ch = ch
+        self.deliver = deliver
+        self.conversation_id = conversation_id
+        self.correlation_id = correlation_id
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_tb,
+    ) -> bool:
+        if exc_tb is not None:
+            error = traceback.format_exception(exc_type, exc_value, exc_tb)
+            self.endpoint.log(
+                ALERT,
+                f"Unhandled error while processing message {self.deliver.routing_key}",
+                error,
+                conversation_id=self.conversation_id,
+            )
+            # retry once
+            if not self.deliver.redelivered:
+                self.ch.basic_nack(delivery_tag=self.deliver.delivery_tag, requeue=True)
+            else:
+                # dead letter
+                self.endpoint.log(
+                    EMERGENCY,
+                    f"Giving up on {self.deliver.routing_key}",
+                    error,
+                    conversation_id=self.conversation_id,
+                )
+                self.ch.basic_nack(
+                    delivery_tag=self.deliver.delivery_tag, requeue=False
+                )
+            return True
+        else:
+            self.ch.basic_ack(delivery_tag=self.deliver.delivery_tag)
