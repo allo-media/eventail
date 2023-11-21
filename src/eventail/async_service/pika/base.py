@@ -151,6 +151,7 @@ class Service(object):
         self._acked = 0
         self._nacked = 0
         self._message_number = 0
+        self._pending_ack: List[Tuple[int, int]] = []
 
     def connect(self) -> pika.SelectConnection:
         """This method connects to RabbitMQ, returning the connection handle.
@@ -482,12 +483,30 @@ class Service(object):
                 )
         for i in confirm_range:
             del self._deliveries[i]
+        if self._deliveries:
+            low_bound = next(iter(self._deliveries.keys()))
+            for i, (pending, bound) in enumerate(self._pending_ack):
+                if bound < low_bound:
+                    self._channel.basic_ack(delivery_tag=pending)
+                else:
+                    acks = i
+                    del self._pending_ack[:i]
+                    break
+        else:
+            for pending, _ in self._pending_ack:
+                self._channel.basic_ack(delivery_tag=pending)
+            acks = len(self._pending_ack)
+            self._pending_ack.clear()
+
         LOGGER.info(
             "Published %i messages, %i have yet to be confirmed, %i were acked and %i were nacked",
             self._message_number,
             len(self._deliveries),
             self._acked,
             self._nacked,
+        )
+        LOGGER.info(
+            f"Acknowledged {acks} processed messages, {len(self._pending_ack)} still pending"
         )
 
     def start_consuming(self) -> None:
@@ -792,6 +811,14 @@ class Service(object):
             headers,
         )
         LOGGER.info("Published message # %i", self._message_number)
+
+    def _auto_ack(self, delivery_tag: int):
+        if self._deliveries:
+            # self._deliveries may still contain outgoing messages published by
+            # the handler of the incoming delivery `delivery_tag`.
+            self._pending_ack.append((delivery_tag, self._message_number))
+        else:
+            self._channel.basic_ack(delivery_tag=delivery_tag)
 
     # Public interface
 
@@ -1191,7 +1218,7 @@ class AckPolicy(AbstractContextManager):
                 )
             return True
         elif self._ack_on_exit:
-            self.ch.basic_ack(delivery_tag=self.deliver.delivery_tag)
+            self.endpoint._auto_ack(self.deliver.delivery_tag)
         return False
 
     def manual_ack(self, in_progress: Any):
