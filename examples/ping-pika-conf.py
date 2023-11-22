@@ -32,7 +32,6 @@ MESSAGES = []
 
 
 class Ping(Service):
-
     PREFETCH_COUNT = 10
 
     def on_unconfigured(self):

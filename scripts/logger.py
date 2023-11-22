@@ -35,7 +35,6 @@ from pika.exceptions import (
 
 
 class Logger:
-
     LOG_EXCHANGE = "logs"
     LOG_EXCHANGE_TYPE = "topic"
 

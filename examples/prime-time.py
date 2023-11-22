@@ -58,7 +58,6 @@ class PrimeTime(Service):
 
 
 if __name__ == "__main__":
-
     urls = sys.argv[1:] if len(sys.argv) > 2 else ["amqp://localhost"]
     prime_time = ReconnectingSupervisor(
         PrimeTime, urls, ["SecondTicked"], ["prime_time.CheckPrimeResult"], "prime_time"

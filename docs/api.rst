@@ -15,18 +15,6 @@ We depend on the `pika` library for lower level communication and event loop.
     :members: __init__, run
 
 
-Asyncio compatible API
-----------------------
-
-Depends on the aiormq library::
-
-    pip install .[asyncio]
-
-
-.. autoclass:: eventail.async_service.aio.Service
-   :members: __init__, use_json, use_exclusive_queues, log, send_command, return_success, return_error, publish_event, handle_event, handle_command, handle_result, on_ready, create_task, stop, run, PREFETCH_COUNT, RETRY_DELAY, HEARTBEAT
-
-
 Synchronous publisher
 ---------------------
 

@@ -35,8 +35,8 @@ import os
 import signal
 import socket
 import traceback
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple
+from contextlib import AbstractContextManager
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cbor
 import pika
@@ -465,9 +465,9 @@ class Service(object):
         LOGGER.info("Received %s for delivery tag: %i", confirmation_type, delivery_tag)
         confirm_range: List[int]
         if multiple:
-            confirm_range = [
-                i for i in sorted(self._deliveries.keys()) if i <= delivery_tag
-            ]
+            # Python dict are sorted by insertion order since version 3.7.
+            # As we insert keys in tag increasing order, we're good.
+            confirm_range = [i for i in self._deliveries.keys() if i <= delivery_tag]
         else:
             confirm_range = [delivery_tag]
         num_confirms = len(confirm_range)
@@ -642,6 +642,7 @@ class Service(object):
         headers["expiration"] = properties.expiration
         headers["user_id"] = properties.user_id
         headers["app_id"] = properties.app_id
+        headers["delivery_tag"] = basic_deliver.delivery_tag
 
         if exchange == self.CMD_EXCHANGE:
             correlation_id = properties.correlation_id
@@ -661,30 +662,38 @@ class Service(object):
             if reply_to:
                 with self.ack_policy(
                     ch, basic_deliver, conversation_id, correlation_id
-                ):
-                    self.handle_command(
-                        routing_key,
-                        payload,
-                        conversation_id,
-                        reply_to,
-                        correlation_id,
-                        meta=headers,
+                ) as ap:
+                    ap.manual_ack(
+                        self.handle_command(
+                            routing_key,
+                            payload,
+                            conversation_id,
+                            reply_to,
+                            correlation_id,
+                            meta=headers,
+                        )
                     )
             else:
                 with self.ack_policy(
                     ch, basic_deliver, conversation_id, correlation_id
-                ):
-                    self.handle_result(
-                        routing_key,
-                        payload,
-                        conversation_id,
-                        status,
-                        correlation_id,
-                        meta=headers,
+                ) as ap:
+                    ap.manual_ack(
+                        self.handle_result(
+                            routing_key,
+                            payload,
+                            conversation_id,
+                            status,
+                            correlation_id,
+                            meta=headers,
+                        )
                     )
         elif exchange == self.EVENT_EXCHANGE:
-            with self.ack_policy(ch, basic_deliver, conversation_id, ""):
-                self.handle_event(routing_key, payload, conversation_id, meta=headers)
+            with self.ack_policy(ch, basic_deliver, conversation_id, "") as ap:
+                ap.manual_ack(
+                    self.handle_event(
+                        routing_key, payload, conversation_id, meta=headers
+                    )
+                )
         else:
             with self.ack_policy(ch, basic_deliver, "", ""):
                 configured = self.handle_config(routing_key, payload, meta=headers)
@@ -692,38 +701,14 @@ class Service(object):
                     self._configured = True
                     self.start_consuming()
 
-    @contextmanager
     def ack_policy(
         self,
         ch: pika.channel.Channel,
         deliver: pika.spec.Basic.Deliver,
         conversation_id: str,
         correlation_id: str,
-    ) -> Generator[None, None, None]:
-        try:
-            yield None
-        except Exception:
-            error = traceback.format_exc()
-            self.log(
-                ALERT,
-                f"Unhandled error while processing message {deliver.routing_key}",
-                error,
-                conversation_id=conversation_id,
-            )
-            # retry once
-            if not deliver.redelivered:
-                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=True)
-            else:
-                # dead letter
-                self.log(
-                    EMERGENCY,
-                    f"Giving up on {deliver.routing_key}",
-                    error,
-                    conversation_id=conversation_id,
-                )
-                ch.basic_nack(delivery_tag=deliver.delivery_tag, requeue=False)
-        else:
-            ch.basic_ack(delivery_tag=deliver.delivery_tag)
+    ) -> "AckPolicy":
+        return AckPolicy(self, ch, deliver, conversation_id, correlation_id)
 
     def stop_consuming(self) -> None:
         """Tell RabbitMQ that you would like to stop consuming by sending the
@@ -1000,13 +985,21 @@ class Service(object):
                 self._connection.ioloop.stop()
             LOGGER.info("Stopped")
 
+    def manual_ack(self, delivery_tag, multiple=False) -> None:
+        self._channel.basic_ack(delivery_tag=delivery_tag, multiple=multiple)
+
+    def manual_nack(self, delivery_tag, requeue=False, multiple=False) -> None:
+        self._channel.basic_nack(
+            delivery_tag=delivery_tag, requeue=requeue, multiple=multiple
+        )
+
     def handle_event(
         self,
         event: str,
         payload: JSON_MODEL,
         conversation_id: str,
         meta: Dict[str, str],
-    ) -> None:
+    ) -> Any:
         """Handle incoming event (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
@@ -1014,11 +1007,14 @@ class Service(object):
         (see ``__init__()``).
 
         The default implementation dispatches the messages by calling methods in the form
-        ``self.on_KEY(payload)`` where key is the routing key.
+        ``self.on_KEY(payload)`` where key is the routing key and returning their return value.
+
+        Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
+        a truthy one for manual acknowdegment later.
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
-            handler(payload, conversation_id, meta)
+            return handler(payload, conversation_id, meta)
         else:
             self.log(
                 ERROR,
@@ -1034,7 +1030,7 @@ class Service(object):
         reply_to: str,
         correlation_id: str,
         meta: Dict[str, str],
-    ) -> None:
+    ) -> Any:
         """Handle incoming commands (may be overwriten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
@@ -1043,12 +1039,15 @@ class Service(object):
 
         The default implementation dispatches the messages by calling methods in the form
         ``self.on_COMMAND(payload, reply_to, correlation_id)`` where COMMAND is what is left
-        after stripping the ``service.`` prefix from the routing key.
+        after stripping the ``service.`` prefix from the routing key, and returning their return value.
 
+
+        Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
+        a truthy one for manual acknowdegment later.
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
-            handler(payload, conversation_id, reply_to, correlation_id, meta)
+            return handler(payload, conversation_id, reply_to, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log(
@@ -1065,7 +1064,7 @@ class Service(object):
         status: str,
         correlation_id: str,
         meta: Dict[str, str],
-    ) -> None:
+    ) -> Any:
         """Handle incoming result (may be overwritten by subclasses).
 
         The `payload` is already decoded and is a python data structure compatible with the JSON data model.
@@ -1075,11 +1074,14 @@ class Service(object):
 
         The default implementation dispatches the messages by calling methods in the form
         ``self.on_KEY(payload, status, correlation_id)`` where KEY is what is left
-        after stripping the ``service.`` prefix from the routing key.
+        after stripping the ``service.`` prefix from the routing key, and returning their return value.
+
+        Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
+        a truthy one for manual acknowdegment later.
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
-            handler(payload, conversation_id, status, correlation_id, meta)
+            return handler(payload, conversation_id, status, correlation_id, meta)
         else:
             # should never happens: means we misconfigured the routing keys
             self.log(
@@ -1141,3 +1143,56 @@ class Service(object):
         (to be implemented by subclasses)
         """
         pass
+
+
+class AckPolicy(AbstractContextManager):
+    def __init__(
+        self,
+        endpoint: Service,
+        ch: pika.channel.Channel,
+        deliver: pika.spec.Basic.Deliver,
+        conversation_id: str,
+        correlation_id: str,
+    ) -> None:
+        self.endpoint = endpoint
+        self.ch = ch
+        self.deliver = deliver
+        self.conversation_id = conversation_id
+        self.correlation_id = correlation_id
+        self._ack_on_exit = True
+
+    def __exit__(
+        self,
+        exc_type: Union[type, None],
+        exc_value: Union[BaseException, None],
+        exc_tb,
+    ) -> bool:
+        if exc_tb is not None:
+            error = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+            self.endpoint.log(
+                ALERT,
+                f"Unhandled error while processing message {self.deliver.routing_key}",
+                error,
+                conversation_id=self.conversation_id,
+            )
+            # retry once
+            if not self.deliver.redelivered:
+                self.ch.basic_nack(delivery_tag=self.deliver.delivery_tag, requeue=True)
+            else:
+                # dead letter
+                self.endpoint.log(
+                    EMERGENCY,
+                    f"Giving up on {self.deliver.routing_key}",
+                    error,
+                    conversation_id=self.conversation_id,
+                )
+                self.ch.basic_nack(
+                    delivery_tag=self.deliver.delivery_tag, requeue=False
+                )
+            return True
+        elif self._ack_on_exit:
+            self.ch.basic_ack(delivery_tag=self.deliver.delivery_tag)
+        return False
+
+    def manual_ack(self, in_progress: Any):
+        self._ack_on_exit = not bool(in_progress)
