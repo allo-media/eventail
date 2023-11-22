@@ -1013,9 +1013,23 @@ class Service(object):
             LOGGER.info("Stopped")
 
     def manual_ack(self, delivery_tag, multiple=False) -> None:
+        """Manually confirm the processing of the incoming message identified by `delivery_tag`.
+
+        The handler that processed the message first must have returned a truth value to indicate
+        the message will be manually acked.
+
+        **Never mix** manual acknowledgment with automatic end-of-handler acknowledgement.
+        """
         self._channel.basic_ack(delivery_tag=delivery_tag, multiple=multiple)
 
     def manual_nack(self, delivery_tag, requeue=False, multiple=False) -> None:
+        """Manually reject the incoming message identified by `delivery_tag`.
+
+        The handler that processed the message first must have returned a truth value to indicate
+        the message will be manually acked.
+
+        **Never mix** manual acknowledgment with automatic end-of-handler acknowledgement.
+        """
         self._channel.basic_nack(
             delivery_tag=delivery_tag, requeue=requeue, multiple=multiple
         )
@@ -1038,6 +1052,8 @@ class Service(object):
 
         Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
         a truthy one for manual acknowdegment later.
+
+        **Never mix** manual acknowledgment with automatic end-of-handler acknowledgement.
         """
         handler = getattr(self, "on_" + event)
         if handler is not None:
@@ -1071,6 +1087,8 @@ class Service(object):
 
         Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
         a truthy one for manual acknowdegment later.
+
+        **Never mix** manual acknowledgment with automatic end-of-handler acknowledgement.
         """
         handler = getattr(self, "on_" + command.split(".")[-1])
         if handler is not None:
@@ -1105,6 +1123,8 @@ class Service(object):
 
         Return a falsy value (default is `None`) for automatic acknowledgement of processed message or
         a truthy one for manual acknowdegment later.
+
+        **Never mix** manual acknowledgment with automatic end-of-handler acknowledgement.
         """
         handler = getattr(self, "on_" + key.split(".")[-1])
         if handler is not None:
