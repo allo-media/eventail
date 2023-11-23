@@ -65,7 +65,8 @@ class Inspector:
         print()
         if self.save:
             with open(
-                properties.headers["conversation_id"]
+                method.routing_key
+                + properties.headers["conversation_id"]
                 + (
                     ".json"
                     if properties.content_type == "application/json"

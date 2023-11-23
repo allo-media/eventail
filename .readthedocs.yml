@@ -5,19 +5,7 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
-# Build documentation with MkDocs
-#mkdocs:
-#  configuration: mkdocs.yml
-
-# Optionally build your docs in additional formats such as PDF and ePub
-formats:
-  - htmlzip
-
-python:
-   version: 3.8
-   install:
-      - method: pip
-        path: .
-        extra_requirements:
-           - asyncio
-           - synchronous
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.8"
