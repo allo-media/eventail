@@ -35,7 +35,6 @@ setup(
     ],
     install_requires=["pika>=1.2.0", "cbor", "redis>=4.5.4"],
     extras_require={
-        "asyncio": ["aiormq", "uvloop"],
         "synchronous": ["kombu"],
         "test": ["tox"],
     },
