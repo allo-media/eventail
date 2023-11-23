@@ -56,7 +56,7 @@ class Ping(Service):
     def process_batch(self, events):
         if not events:
             return
-        self.log(INFO, f"bulk ack of {len(events)} messages")
+        self.log(INFO, f"BULK ACK of {len(events)} messages")
         last_delivery_tag = events[-1].meta["delivery_tag"]
         self.manual_ack(last_delivery_tag, multiple=True)
 
