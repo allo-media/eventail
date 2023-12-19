@@ -82,7 +82,7 @@ if __name__ == "__main__":
     unserialize = json.loads if ext == ".json" else cbor.loads
     with open(args.payload, "rb") as ins:
         data = ins.read()
-    payload = unserialize(data) # type: ignore
+    payload = unserialize(data)  # type: ignore
     event_sender = EventSender(
         [args.amqp_url], args.event, payload, use_json=ext == "json"
     )
