@@ -26,7 +26,7 @@ import argparse
 import json
 import os.path
 
-import cbor
+import cbor2 as cbor
 
 from eventail.sync_publisher import Endpoint
 

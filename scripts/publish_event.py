@@ -28,7 +28,7 @@ import json
 import os.path
 import time
 
-import cbor
+import cbor2 as cbor
 import pika
 
 from eventail.async_service.pika import Service

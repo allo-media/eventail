@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="eventail",
-    version="2.3.0",
+    version="2.3.1",
     url="https://github.com/allo-media/eventail",
     author="Allo-Media",
     author_email="dev@allo-media.fr",
@@ -33,7 +33,7 @@ setup(
         "scripts/resurrect.py",
         "scripts/send_command.py",
     ],
-    install_requires=["pika>=1.2.0", "cbor", "redis>=4.5.4"],
+    install_requires=["pika>=1.2.0", "cbor2", "redis>=4.5.4"],
     extras_require={
         "synchronous": ["kombu"],
         "test": ["tox"],

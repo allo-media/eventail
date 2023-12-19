@@ -27,7 +27,7 @@ import argparse
 import os
 import pprint
 
-import cbor
+import cbor2 as cbor
 from eventail.async_service.pika import Service
 
 
