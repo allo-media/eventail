@@ -28,7 +28,7 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-import cbor
+import cbor2 as cbor
 import redis
 import redis.sentinel
 from redis.exceptions import ConnectionError, RedisError

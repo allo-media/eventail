@@ -26,7 +26,7 @@ import argparse
 import json
 import pprint
 
-import cbor
+import cbor2 as cbor
 
 import pika
 from pika.exceptions import (

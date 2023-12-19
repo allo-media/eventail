@@ -28,7 +28,7 @@ import json
 import pprint
 import os.path
 
-import cbor
+import cbor2 as cbor
 
 from eventail.async_service.pika import Service
 
@@ -98,6 +98,6 @@ if __name__ == "__main__":
     unserialize = json.loads if ext == ".json" else cbor.loads
     with open(args.payload, "rb") as ins:
         data = ins.read()
-    payload = unserialize(data)
+    payload = unserialize(data)  # type: ignore
     rpc = RPC([args.amqp_url], args.command, payload, use_json=ext == "json")
     rpc.run()

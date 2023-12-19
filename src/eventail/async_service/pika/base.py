@@ -38,7 +38,7 @@ import traceback
 from contextlib import AbstractContextManager
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import cbor
+import cbor2 as cbor
 import pika
 
 from eventail.gelf import GELF
