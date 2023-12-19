@@ -57,7 +57,7 @@ class Inspector:
 
     def callback(self, ch, method, properties, body):
         decode = (
-            json.loads if properties.content_type == "application/json" else cbor2 as cbor.loads
+            json.loads if properties.content_type == "application/json" else cbor.loads
         )
         print("[{}]".format(method.routing_key))
         pprint.pprint(properties)
