@@ -29,7 +29,7 @@ import os
 import socket
 from typing import Any, Dict, List, Optional
 
-import cbor
+import cbor2 as cbor
 from kombu import Connection, Exchange
 from kombu.pools import producers, set_limit
 

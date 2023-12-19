@@ -28,7 +28,7 @@ import json
 import os.path
 import time
 
-import cbor
+import cbor2 as cbor
 import pika
 
 from eventail.async_service.pika import Service
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     unserialize = json.loads if ext == ".json" else cbor.loads
     with open(args.payload, "rb") as ins:
         data = ins.read()
-    payload = unserialize(data)
+    payload = unserialize(data)  # type: ignore
     event_sender = EventSender(
         [args.amqp_url], args.event, payload, use_json=ext == "json"
     )

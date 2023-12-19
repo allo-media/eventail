@@ -26,7 +26,7 @@ import argparse
 import json
 import os.path
 
-import cbor
+import cbor2 as cbor
 
 from eventail.sync_publisher import Endpoint
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     unserialize = json.loads if ext == ".json" else cbor.loads
     with open(args.payload, "rb") as ins:
         data = ins.read()
-    payload = unserialize(data)
+    payload = unserialize(data)  # type: ignore
 
     endpoint = Endpoint(args.amqp_url, "debug_configuration_event_publisher")
     endpoint.publish_configuration(args.event, payload)
