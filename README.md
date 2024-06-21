@@ -8,7 +8,7 @@
 
 The Allo-Media event-driven service architecture is language and framework independent and is described in the following document:
 
-*Blog post coming soon…*
+https://blog.uh.live/2020/02/17/an-event-drive-architecture/
 
 ### eventail.async_service
 

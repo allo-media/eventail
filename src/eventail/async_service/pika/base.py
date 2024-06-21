@@ -482,7 +482,7 @@ class Service(object):
                     self.RETRY_DELAY, lambda args=self._deliveries[i]: self._emit(*args)
                 )
                 del self._deliveries[i]
-            # Pending acks that depend on at least one of those nacked publishes should be rescheduled too
+            # Pending rcv acks that depend on at least one of those nacked publishes should be rescheduled too
             low_bound = confirm_range[0]
             for i, (_, bound) in enumerate(self._pending_ack):
                 if bound >= low_bound:
@@ -497,6 +497,7 @@ class Service(object):
         # ACK only
         for i in confirm_range:
             del self._deliveries[i]
+        acks = 0
         if self._deliveries:
             low_bound = next(iter(self._deliveries.keys()))
             for i, (pending, bound) in enumerate(self._pending_ack):
