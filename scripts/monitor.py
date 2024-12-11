@@ -53,10 +53,7 @@ class Monitor(Service):
             pprint.pprint(payload)
 
     def _should_skip(self, payload):
-        for field, value in self.filter_fields:
-            if payload.get(field) != value:
-                return True
-        return False
+        return any(payload.get(field) != value for field, value in self.filter_fields)
 
     def handle_result(
         self,
