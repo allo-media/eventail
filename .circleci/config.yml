@@ -36,21 +36,18 @@ jobs:
             - ./venv
             - .tox
 
-      # run linters!
       - run:
           name: run linters
           command: |
             . venv/bin/activate
             tox -e mypy,linter
 
-      # run tests!
       - run:
           name: run tests
           command: |
             . venv/bin/activate
             tox -e py3
 
-      # test scripts
       - run:
           name: run scripts
           command: |
