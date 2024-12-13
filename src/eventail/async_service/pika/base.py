@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2021 Groupe Allo-Media
+# Copyright (c) 2018-2024 Groupe Allo-Media
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -605,7 +605,7 @@ class Service(object):
         """
         decoder = cbor if properties.content_type == "application/cbor" else json
         # If we are not able to decode our own payload, better crash the service now
-        payload: JSON_MODEL = decoder.loads(body) if body else None
+        payload: JSON_MODEL = decoder.loads(body) if body else None  # type: ignore
         routing_key: str = basic_return.routing_key
         envelope: Dict[str, str] = {}
         if properties.reply_to:
@@ -659,7 +659,7 @@ class Service(object):
         conversation_id = headers.pop("conversation_id", "")
 
         try:
-            payload: JSON_MODEL = decoder.loads(body) if body else None
+            payload: JSON_MODEL = decoder.loads(body) if body else None  # type: ignore
         except ValueError:
             self.log(
                 EMERGENCY,

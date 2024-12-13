@@ -1,9 +1,14 @@
 ---
-version: 2
+version: 2.1
 jobs:
   build:
+    parameters:
+      version:
+        description: "version tag"
+        default: "3.12"
+        type: string
     docker:
-      - image: cimg/python:3.8
+      - image: cimg/python:<<parameters.version>>
       - image: cimg/redis:5.0
         name: redis
 
@@ -14,7 +19,7 @@ jobs:
 
       # Download and cache dependencies
       - restore_cache:
-          key: env-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
+          key: <<parameters.version>>-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
 
       - run:
           name: install tox
@@ -26,26 +31,23 @@ jobs:
             tox --notest  # Install all tox dependencies
 
       - save_cache:
-          key: env-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
+          key: <<parameters.version>>-{{ .Environment.CACHE_VERSION }}-{{ checksum "setup.py" }}-{{ checksum "tox.ini" }}
           paths:
             - ./venv
             - .tox
 
-      # run linters!
       - run:
           name: run linters
           command: |
             . venv/bin/activate
-            tox -e mypy,flake8
+            tox -e mypy,linter
 
-      # run tests!
       - run:
           name: run tests
           command: |
             . venv/bin/activate
             tox -e py3
 
-      # test scripts
       - run:
           name: run scripts
           command: |
@@ -60,7 +62,7 @@ jobs:
 
   deploy:
     docker:
-      - image: cimg/python:3.8
+      - image: cimg/python:3.12
 
     working_directory: ~/eventail
 
@@ -96,7 +98,16 @@ workflows:
   version: 2
   build_test:
     jobs:
-      - build
+      - build:
+          matrix:
+            parameters:
+              version:
+                - "3.8"
+                - "3.9"
+                - "3.10"
+                - "3.11"
+                - "3.12"
+                - "3.13"
       - deploy:
           requires:
             - build

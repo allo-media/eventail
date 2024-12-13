@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2019 Groupe Allo-Media
+# Copyright (c) 2018-2024 Groupe Allo-Media
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,8 +35,9 @@ JSON_MODEL = Dict[str, Any]
 
 
 class Monitor(Service):
-    def __init__(self, save, *args, **kwargs):
+    def __init__(self, save, filter_fields, *args, **kwargs):
         self.save = save
+        self.filter_fields = filter_fields
         super().__init__(*args, **kwargs)
 
     def dump(self, key, conversation_id, payload):
@@ -51,6 +52,9 @@ class Monitor(Service):
             print("Payload:")
             pprint.pprint(payload)
 
+    def _should_skip(self, payload):
+        return any(payload.get(field) != value for field, value in self.filter_fields)
+
     def handle_result(
         self,
         key: str,
@@ -60,6 +64,8 @@ class Monitor(Service):
         correlation_id: str,
         meta: Dict[str, str],
     ) -> None:
+        if self._should_skip(payload):
+            return
         print("Got a Result:", key)
         print("Conversation ID:", conversation_id)
         print("Correlation ID:", correlation_id)
@@ -78,6 +84,8 @@ class Monitor(Service):
         correlation_id: str,
         meta: Dict[str, str],
     ) -> None:
+        if self._should_skip(payload):
+            return
         print("Got a Command", command)
         print("Conversation ID:", conversation_id)
         print("Correlation ID", correlation_id)
@@ -94,6 +102,8 @@ class Monitor(Service):
         conversation_id: str,
         meta: Dict[str, str],
     ) -> None:
+        if self._should_skip(payload):
+            return
         print("Got an Event", event)
         print("Conversation ID:", conversation_id)
         print("Metadata:", meta)
@@ -107,6 +117,8 @@ class Monitor(Service):
         payload: JSON_MODEL,
         meta: Dict[str, str],
     ) -> bool:
+        if config != "MonitorStarted" and self._should_skip(payload):
+            return True
         print("Got a configuration", config)
         print("Metadata:", meta)
         self.dump(config, "", payload)
@@ -120,6 +132,10 @@ class Monitor(Service):
 
     def on_ready(self) -> None:
         print("Started")
+
+
+def fields(string: str):
+    return string.split("=")
 
 
 if __name__ == "__main__":
@@ -151,11 +167,19 @@ if __name__ == "__main__":
         default=[],
     )
     parser.add_argument(
-        "--save", action="store_true", help="save payloads in CBOR format."
+        "--save", action="store_true", help="Save payloads in CBOR format."
+    )
+    parser.add_argument(
+        "--filter_fields",
+        help="Filter payload for specific fields values, for example client_id=123 campaign_id=456",
+        nargs="*",
+        type=fields,
+        default=[],
     )
     args = parser.parse_args()
     monitor = Monitor(
         args.save,
+        args.filter_fields,
         [args.amqp_url],
         args.events,
         args.commands,
@@ -166,7 +190,7 @@ if __name__ == "__main__":
     print("Subscribing to events:", args.events)
     print("Subscribing to commands:", args.commands)
     print("Subscribing to configurations:", args.configurations)
-    print("Press Ctr-C to quit.")
+    print("Press Ctrl-C to quit.")
     try:
         monitor.run()
     except KeyboardInterrupt:

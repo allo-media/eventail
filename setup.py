@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="eventail",
-    version="2.3.2",
+    version="2.3.3",
     url="https://github.com/allo-media/eventail",
     author="Allo-Media",
     author_email="dev@allo-media.fr",
@@ -16,6 +16,11 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Intended Audience :: Developers",
         "Operating System :: POSIX :: Linux",
         "Topic :: Software Development",
