@@ -777,8 +777,10 @@ class Service(object):
             "RabbitMQ acknowledged the cancellation of the consumer: %s", userdata
         )
         if self._event_consumer_tag == userdata:
+            LOGGER.info("  [associated queue was %s]", self._event_queue)
             self._event_consumer_tag = None
         elif self._command_consumer_tag == userdata:
+            LOGGER.info("  [associated queue was %s]", self._command_queue)
             self._command_consumer_tag = None
 
         if (
