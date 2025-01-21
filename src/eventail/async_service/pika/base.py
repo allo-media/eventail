@@ -503,10 +503,10 @@ class Service(object):
             for i, (pending, bound) in enumerate(self._pending_ack):
                 if bound < low_bound:
                     self._channel.basic_ack(delivery_tag=pending)
+                    acks = i + 1
                 else:
-                    acks = i
-                    del self._pending_ack[:i]
                     break
+            del self._pending_ack[:acks]
         else:
             for pending, _ in self._pending_ack:
                 self._channel.basic_ack(delivery_tag=pending)
@@ -523,6 +523,9 @@ class Service(object):
         LOGGER.info(
             f"Acknowledged {acks} processed messages, {len(self._pending_ack)} still pending"
         )
+        if self._closing and self._consuming is False and not self._deliveries:
+            LOGGER.info("no more pending deliveries, closing channel…")
+            self.close_channel()
 
     def start_consuming(self) -> None:
         """This method sets up the consumer by first calling
@@ -754,7 +757,6 @@ class Service(object):
             for consumer_tag in (
                 self._event_consumer_tag,
                 self._command_consumer_tag,
-                self._config_consumer_tag,
             ):
                 if consumer_tag is not None:
                     cb = functools.partial(self.on_cancelok, userdata=consumer_tag)
@@ -774,7 +776,20 @@ class Service(object):
         LOGGER.info(
             "RabbitMQ acknowledged the cancellation of the consumer: %s", userdata
         )
-        self.close_channel()
+        if self._event_consumer_tag == userdata:
+            LOGGER.info("  [associated queue was %s]", self._event_queue)
+            self._event_consumer_tag = None
+        elif self._command_consumer_tag == userdata:
+            LOGGER.info("  [associated queue was %s]", self._command_queue)
+            self._command_consumer_tag = None
+
+        if (
+            self._event_consumer_tag is None
+            and self._command_consumer_tag is None
+            and not self._deliveries
+        ):
+            LOGGER.info("no pending deliveries, closing channel…")
+            self.close_channel()
 
     def close_channel(self) -> None:
         """Call to close the channel with RabbitMQ cleanly by issuing the

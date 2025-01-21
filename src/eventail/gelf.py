@@ -1,4 +1,5 @@
 """GELF log format support."""
+
 import json
 import time
 from typing import Dict, Protocol
