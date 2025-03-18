@@ -148,11 +148,11 @@ def fields(string: str):
 
 
 if __name__ == "__main__":
-    import logging
+    # import logging
 
-    logger = logging.getLogger("async_service")
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
+    # logger = logging.getLogger("async_service")
+    # logger.addHandler(logging.StreamHandler())
+    # logger.setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser(
         description="Monitor selected Events and/or Commands on the given broker"
