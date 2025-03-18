@@ -37,11 +37,17 @@ from pika.exceptions import (
 
 class Resurrection:
     def __init__(
-        self, url: str, queue: str, batch_size: int = 1, count: int = 0
+        self,
+        url: str,
+        queue: str,
+        ev_filter: List[str],
+        batch_size: int = 10,
+        count: int = 0,
     ) -> None:
         connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
 
+        self._filter = ev_filter
         self._batch_size = batch_size
         result = channel.queue_declare(queue, passive=True)
         channel.basic_qos(prefetch_count=self._batch_size)
@@ -66,10 +72,11 @@ class Resurrection:
         properties: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
-        # we cache the message to avoid loops if
-        # some resurrected messages come back dead again.
-        self.messages.append((method, properties, body))
-        print("Buffering message", method)
+        if "#" in self._filter or method.routing_key in self._filter:
+            # we cache the message to avoid loops if
+            # some resurrected messages come back dead again.
+            print("Buffering message", method)
+            self.messages.append((method, properties, body))
         self._seen += 1
         if self._seen == self._count:
             print("replay")
@@ -132,21 +139,23 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--batch_size",
-        help="for more efficiency, if the messages are small, process them in batches of this size (default is 1).",
+        help="for more efficiency, if the messages are small, process them in batches of this size (default is 10).",
         type=int,
-        default=1,
+        default=10,
     )
-    # parser.add_argument(
-    #     "--filter",
-    #     help="Log patterns to subscribe to (default to all)",
-    #     nargs="*",
-    #     default=["#"],
-    # )
+    parser.add_argument(
+        "--filter",
+        help="select event names to resurrect (default all)",
+        nargs="*",
+        default=["#"],
+    )
     args = parser.parse_args()
     expected_stop = False
     print("Ctrl-C to quit.")
     print("Resurrecting from:", args.queue)
-    inspector = Resurrection(args.amqp_url, args.queue, args.batch_size, args.count)
+    inspector = Resurrection(
+        args.amqp_url, args.queue, args.filter, args.batch_size, args.count
+    )
     if inspector.run():
         print("Done!")
     else:
