@@ -24,6 +24,7 @@
 #
 from typing import Any, Dict
 import argparse
+import json
 import os
 import pprint
 
@@ -35,18 +36,24 @@ JSON_MODEL = Dict[str, Any]
 
 
 class Monitor(Service):
-    def __init__(self, save, filter_fields, *args, **kwargs):
+    def __init__(self, save, force_json, filter_fields, *args, **kwargs):
         self.save = save
+        self.force_json = force_json
         self.filter_fields = filter_fields
         super().__init__(*args, **kwargs)
 
     def dump(self, key, conversation_id, payload):
         if self.save:
-            filename = f"{key}.{conversation_id}.cbor"
+            extension = "json" if self.force_json else "cbor"
+            fmode = "w" if self.force_json else "wb"
+            filename = f"{key}.{conversation_id}.{extension}"
             if os.path.exists(filename):
-                filename = f"{key}.{conversation_id}.2.cbor"
-            with open(filename, "wb") as output:
-                cbor.dump(payload, output)
+                filename = f"{key}.{conversation_id}.2.{extension}"
+            with open(filename, fmode) as output:
+                if self.force_json:
+                    json.dump(payload, output, ensure_ascii=False)
+                else:
+                    cbor.dump(payload, output)
             print("Payload saved as", filename)
         else:
             print("Payload:")
@@ -83,9 +90,9 @@ class Monitor(Service):
         reply_to: str,
         correlation_id: str,
         meta: Dict[str, str],
-    ) -> None:
+    ) -> bool:
         if self._should_skip(payload):
-            return
+            return False
         print("Got a Command", command)
         print("Conversation ID:", conversation_id)
         print("Correlation ID", correlation_id)
@@ -94,6 +101,7 @@ class Monitor(Service):
         self.dump(command, conversation_id, payload)
         print("---------")
         print()
+        return False
 
     def handle_event(
         self,
@@ -101,15 +109,16 @@ class Monitor(Service):
         payload: JSON_MODEL,
         conversation_id: str,
         meta: Dict[str, str],
-    ) -> None:
+    ) -> bool:
         if self._should_skip(payload):
-            return
+            return False
         print("Got an Event", event)
         print("Conversation ID:", conversation_id)
         print("Metadata:", meta)
         self.dump(event, conversation_id, payload)
         print("---------")
         print()
+        return False
 
     def handle_config(
         self,
@@ -119,9 +128,9 @@ class Monitor(Service):
     ) -> bool:
         if config != "MonitorStarted" and self._should_skip(payload):
             return True
-        print("Got a configuration", config)
+        print("Got a configuration", config, payload)
         print("Metadata:", meta)
-        self.dump(config, "", payload)
+        self.dump(config, "na", payload)
         print("---------")
         print()
         return True
@@ -140,6 +149,7 @@ def fields(string: str):
 
 if __name__ == "__main__":
     # import logging
+
     # logger = logging.getLogger("async_service")
     # logger.addHandler(logging.StreamHandler())
     # logger.setLevel(logging.DEBUG)
@@ -167,7 +177,12 @@ if __name__ == "__main__":
         default=[],
     )
     parser.add_argument(
-        "--save", action="store_true", help="Save payloads in CBOR format."
+        "--save",
+        action="store_true",
+        help="Save payloads (in CBOR format unless --json is also set).",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Prefer JSON to CBOR when saving payloads."
     )
     parser.add_argument(
         "--filter_fields",
@@ -179,6 +194,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     monitor = Monitor(
         args.save,
+        args.json,
         args.filter_fields,
         [args.amqp_url],
         args.events,
@@ -194,4 +210,5 @@ if __name__ == "__main__":
     try:
         monitor.run()
     except KeyboardInterrupt:
+        print("stop")
         monitor.stop()
