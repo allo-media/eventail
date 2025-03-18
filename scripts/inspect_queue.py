@@ -48,9 +48,10 @@ class Inspector:
         self._count = result.method.message_count if count == 0 else count
         self._seen = 0
 
-        channel.basic_consume(
-            queue=queue_name, on_message_callback=self.callback, auto_ack=False
-        )
+        if self._count > 0:
+            channel.basic_consume(
+                queue=queue_name, on_message_callback=self.callback, auto_ack=False
+            )
 
         self._channel = channel
         self._connection = connection
