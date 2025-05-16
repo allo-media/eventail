@@ -854,7 +854,7 @@ class Service(object):
 
     def use_json(self) -> None:
         """Force sending message serialized in plain JSON instead of CBOR."""
-        self._serialize = lambda message: json.dumps(message).encode("utf-8")
+        self._serialize = lambda message: json.dumps(message, ensure_ascii=False).encode("utf-8")
         self._mime_type = "application/json"
 
     def use_exclusive_queues(self) -> None:
